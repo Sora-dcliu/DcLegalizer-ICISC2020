@@ -16,8 +16,8 @@ class cell:
 		if(self.height > 1): return 'r'
 		else: return 'b'
 
-inputFile  = sys.argv[1] + '.in'
-resultFile = sys.argv[1] + '.out'
+inputFile  = '../testcase/' + sys.argv[1] + '.in'
+resultFile = '../output/' + sys.argv[1] + '.out'
 
 row_cnt = 0
 col_cnt = 0
@@ -50,14 +50,14 @@ for x in range(0, int(col_cnt/8)+1):
 	x_tick.append(x * 8)
 if(col_cnt % 8 > 0): x_tick.append(col_cnt)
 
-for y in range(0, int(row_cnt / 8)+1):
+for y in range(1, int(row_cnt / 8)+1):
 	y_tick.append(y * 8)
 if(row_cnt % 8 > 0): y_tick.append(row_cnt)
 
 
 #plot
 #grid setting
-fig = plt.figure(figsize = (8 * col_cnt/max(col_cnt, row_cnt)*2, 8* row_cnt/max(col_cnt, row_cnt)))
+fig = plt.figure(figsize = (8 * col_cnt/max(col_cnt, row_cnt)*2+1, 8* row_cnt/max(col_cnt, row_cnt)))
 fig.tight_layout()
 
 #ax1 - original position
@@ -68,7 +68,6 @@ plt.ylim(0, row_cnt)
 plt.xticks(x_tick)
 plt.yticks(y_tick)
 plt.grid()
-plt.axis('equal')
 
 #ax2 - result solution
 ax2 = fig.add_subplot(1,2,2)
@@ -78,7 +77,6 @@ plt.ylim(0, row_cnt)
 plt.xticks(x_tick)
 plt.yticks(y_tick)
 plt.grid()
-plt.axis('equal')
 
 #draw cells
 for cell in cells:

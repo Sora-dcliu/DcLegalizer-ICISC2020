@@ -28,7 +28,7 @@ Legalize::Legalize() {
 }
 
 void Legalize::preConsiderSearchOrder() {//Take a symmetrical 45 degree Angle, (8,8) as a search unit
-	for(int i = 1; i < max(Col_cnt / 8, Row_cnt / 8); i++) {
+	for(int i = 1; i < max(Col_cnt, Row_cnt); i++) {
 		for(int j = 0; j <= i; j++) {
 			long long cost = pow(i * 8, 2) + pow(j * 8, 2);
 			this->SearchOrder.insert(make_pair(cost, j));
@@ -155,7 +155,7 @@ bool searchCol::Extend() {
 	//up
 	for(int i = 1; i <= 8; i++) {
 		int y = this->end_y_ + i;
-		if(y >= Row_cnt) break;
+		if(y > max_y) break;
 		if(Grid[this->col_][y].isOccupied()) {
 			deadPart.second = y;
 		}
@@ -169,10 +169,10 @@ bool searchCol::Extend() {
 			}
 		}
 	}
-	end_y_ = min(Row_cnt -1, end_y_ + 8);
+	end_y_ = min(max_y, end_y_ + 8);
 	if(this->deadPart.first < this->inst_->height()) this->deadPart.first = 0;
-	if(Row_cnt -1 - this->deadPart.second < this->inst_->height()) this->deadPart.second = Row_cnt-1;
-	if(this->deadPart.first == 0 && this->deadPart.second == Row_cnt -1) this->deadCol = true;
+	if(max_y - this->deadPart.second < this->inst_->height()) this->deadPart.second = max_y;
+	if(this->deadPart.first == 0 && this->deadPart.second == max_y) this->deadCol = true;
 	return false;
 }
 

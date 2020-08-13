@@ -1,12 +1,11 @@
 #include "global.h"
+#include "legalize.h"
 
 //Variable initialization
 int Row_cnt;
 int Col_cnt;
 int Cell_cnt;
-int max_y;
 vector<shared_ptr<cell>> CELLS;
-vector<vector<Bin>> Grid;
 
 int main(int argc,char *argv[]) {
     try {
@@ -15,9 +14,8 @@ int main(int argc,char *argv[]) {
         string outputFile = argv[2];
         //Reading inoput file
         getInput(inputFile);
-        initBins();
-        Legalize Leg;
-        Leg.doLegalize();
+        Legalize leg;
+        leg.doLegalize();
         //dump output file
         Output(outputFile);
     }
