@@ -55,7 +55,7 @@ y_tick = []
 for x in range(0, int(max_x/8+0.5)+1):
 	x_tick.append(x)
 
-for y in range(0, int(max_y/8+0.5)+1):
+for y in range(0, int(max_y/8+0.5)):
 	y_tick.append(y)
 
 
