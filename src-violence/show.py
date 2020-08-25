@@ -19,20 +19,23 @@ class cell:
 inputFile  = '../testcase/' + sys.argv[1] + '.in'
 resultFile = '../output/' + sys.argv[1] + '.out'
 
-row_cnt = 0
-col_cnt = 0
-cell_cnt = 0
-
 cells = []
-
+first_line = 0
+minx = 100000000
+maxx = 0
+miny = minx
+maxy = 0
 for line in open(inputFile):
+	if(first_line == 0):
+		first_line = 1
+		continue
 	info = line.split(' ')
-	if(row_cnt == 0):
-		row_cnt = int(info[0])
-		col_cnt = int(info[1])
-		cell_cnt = int(info[2])
-	else:
-		cells.append(cell(int(info[0]), int(info[1]), int(info[2])))
+	inst = cell(int(info[0]), int(info[1]), int(info[2]))
+	cells.append(inst)
+	maxx = max(inst.oldlx + 8, maxx)
+	minx = min(inst.oldlx, minx)
+	maxy = max(inst.oldly + inst.height, maxy)
+	miny = min(inst.oldly, miny)
 
 i = 0
 cost = 0
@@ -42,50 +45,41 @@ for line in open(resultFile):
 	ly = int(info[1])
 	cells[i].setLoc(lx,ly)
 	cost += cells[i].height * (pow((cells[i].lx - cells[i].oldlx),2) + pow((cells[i].ly - cells[i].oldly),2))
+	maxx = max(lx + 8, maxx)
+	minx = min(lx, minx)
+	maxy = max(ly + cells[i].height, maxy)
+	miny = min(ly, miny)
 	i+=1
 
 x_tick = []
 y_tick = []
-for x in range(0, int(col_cnt/8)+1):
+for x in range(int(minx/8)-1, int(maxx/8)+1):
 	x_tick.append(x * 8)
-if(col_cnt % 8 > 0): x_tick.append(col_cnt)
 
-for y in range(0, int(row_cnt / 8)+1):
+for y in range(int(miny/8)-1, int(maxy/8)+1):
 	y_tick.append(y * 8)
-if(row_cnt % 8 > 0): y_tick.append(row_cnt)
-
 
 #plot
 #grid setting
-fig = plt.figure(figsize = (8 * col_cnt/max(col_cnt, row_cnt)*2+1, 8* row_cnt/max(col_cnt, row_cnt)))
+fig = plt.figure()
 fig.tight_layout()
 
 #ax1 - original position
 ax1 = fig.add_subplot(1,2,1)
 ax1.set_title('INPUT')
-
+plt.xlim(minx, maxx)
+plt.ylim(miny, maxy)
 plt.xticks(x_tick)
 plt.yticks(y_tick)
-plt.tick_params(width=0)
-plt.axis('equal')
-ax1.xaxis.set_ticks_position('bottom')
-ax1.spines['bottom'].set_position(('data',0))
-ax1.yaxis.set_ticks_position('left')
-ax1.spines['left'].set_position(('data',0))
 plt.grid()
 
 #ax2 - result solution
 ax2 = fig.add_subplot(1,2,2)
 ax2.set_title('SOLUTION')
-
+plt.xlim(minx, maxx)
+plt.ylim(miny, maxy)
 plt.xticks(x_tick)
 plt.yticks(y_tick)
-plt.tick_params(width=0)
-plt.axis('equal')
-ax2.xaxis.set_ticks_position('bottom')
-ax2.spines['bottom'].set_position(('data',0))
-ax2.yaxis.set_ticks_position('left')
-ax2.spines['left'].set_position(('data',0))
 plt.grid()
 
 #draw cells
