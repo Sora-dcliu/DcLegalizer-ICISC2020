@@ -43,6 +43,7 @@ void Col::collapse(Cluster& c) {
 }
 
 long long Col::PlaceCol(shared_ptr<cell>& inst) {
+	int id = inst->idx();
 	if(this->Clusters_.size() == 0 || this->Clusters_.rbegin()->uy() <= inst->oldly()) {
 		//create a new cluster
 		Cluster c(inst, this->Clusters_.size());
@@ -66,7 +67,7 @@ long long Col::PlaceCol(shared_ptr<cell>& inst) {
 				else //closer from original position
 					cost -= inst_c->height() * pow(inst_c->ly() - curLy, 2);
 			}
-			curLy += inst->height();
+			curLy += inst_c->height();
 		}
 	}
 	return cost;
@@ -86,6 +87,7 @@ Legalize::Legalize() {
 void Legalize::doLegalize() {
 	for(auto& cell_pair : this->sortedCells) {
 		auto& inst = cell_pair.second;
+		int id = inst->idx();
 		long long bestCost = LLONG_MAX;
 		Col bestCol;
 		int nearestCol = round(1.0 * inst->lx()/8);
