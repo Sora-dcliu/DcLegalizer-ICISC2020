@@ -76,7 +76,7 @@ long long Col::PlaceCol(shared_ptr<cell>& inst) {
 Legalize::Legalize() {
 	//general rows
 	for(int i = 0; i < Col_cnt; i++) {
-		COLS.push_back(Col(i));
+		COLS_.push_back(Col(i));
 	}
 	//sort cells in y order
 	for(auto& inst : CELLS) {
@@ -95,7 +95,7 @@ void Legalize::doLegalize() {
 		for(int i = 0; left || right; i++) {
 			//left
 			if(nearestCol - i >=0 && left) {
-				auto curCol = COLS[nearestCol - i];
+				auto curCol = COLS_[nearestCol - i];
 				long long curCost = curCol.PlaceCol(inst);
 				if(curCost < bestCost) {
 					bestCost = curCost;
@@ -107,7 +107,7 @@ void Legalize::doLegalize() {
 
 			//right
 			if(nearestCol + i < Col_cnt && right && i != 0) {
-				auto curCol = COLS[nearestCol + i];
+				auto curCol = COLS_[nearestCol + i];
 				long long curCost = curCol.PlaceCol(inst);
 				if(curCost < bestCost) {
 					bestCost = curCost;
@@ -118,7 +118,7 @@ void Legalize::doLegalize() {
 			else if(nearestCol + i >= Col_cnt) right = false;
 
 		}
-		COLS[bestCol.idx()] = bestCol;
+		COLS_[bestCol.idx()] = bestCol;
 		//set final position
 		for(auto& c : bestCol.Clusters()) {
 			int curLy = c.ly();
