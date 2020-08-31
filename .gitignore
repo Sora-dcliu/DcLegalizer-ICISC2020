@@ -1,11 +1,5 @@
 
-*.o
-*.json
 .DS_Store
-output/case1.out
 *.out
-*.out
-src-abacus-2.0/main
-src-abacus/main
-src-abacus/main
-*.out
+*.json
+*.o
