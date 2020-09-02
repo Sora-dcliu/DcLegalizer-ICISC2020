@@ -15,6 +15,10 @@ class cell:
 	def color(self):
 		if(self.height > 1): return 'r'
 		else: return 'b'
+	def cx(self):
+		return self.lx + 8/2
+	def cy(self):
+		return self.ly + self.height/2
 
 inputFile  = '../testcase/' + sys.argv[1] + '.in'
 resultFile = '../output/' + sys.argv[1] + '.out'
@@ -61,31 +65,27 @@ for y in range(int(miny/8)-1, int(maxy/8)+1):
 
 #plot
 #grid setting
-fig = plt.figure()
+fig = plt.figure(figsize=(8, 8))
 fig.tight_layout()
 
-#ax1 - original position
-ax1 = fig.add_subplot(1,2,1)
-ax1.set_title('INPUT')
+#ax - result solution
+ax = fig.add_subplot(1,1,1)
 plt.xlim(minx, maxx)
 plt.ylim(miny, maxy)
 plt.xticks(x_tick)
 plt.yticks(y_tick)
-plt.grid()
-
-#ax2 - result solution
-ax2 = fig.add_subplot(1,2,2)
-ax2.set_title('SOLUTION')
-plt.xlim(minx, maxx)
-plt.ylim(miny, maxy)
-plt.xticks(x_tick)
-plt.yticks(y_tick)
-plt.grid()
-
+plt.grid(linewidth = 0.05)
+plt.tick_params(labelsize = 2.5)
 #draw cells
+i=0
 for cell in cells:
-	ax1.add_patch(plt.Rectangle((cell.oldlx, cell.oldly), cell.width, cell.height, facecolor = cell.color(), edgecolor = 'black', linewidth = 2, alpha = 0.4))
-	ax2.add_patch(plt.Rectangle((cell.lx, cell.ly), cell.width, cell.height, facecolor = cell.color(), edgecolor = 'black', linewidth = 2, alpha = 0.4))
+	ax.add_patch(plt.Rectangle((cell.lx, cell.ly), cell.width, cell.height, facecolor = cell.color(),  alpha = 0.4))
+	X = [cell.oldlx, cell.lx]
+	Y = [cell.oldly, cell.ly]
+	ax.plot(X, Y, linewidth = 0.1, color = 'black', linestyle = '--')
+	ax.text(cell.cx(), cell.cy(), s = str(i), fontsize = 0.25)
+	i+=1
 
 plt.suptitle('Cost:' + str(cost))
-plt.show()
+plt.savefig(fname = "../output/" + sys.argv[1]+".svg",format="svg")
+#plt.show()
