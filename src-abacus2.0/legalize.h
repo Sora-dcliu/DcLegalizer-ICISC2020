@@ -13,7 +13,7 @@ class Cluster {
   Cluster(shared_ptr<cell>& inst, int idx, int lx);
 
   inline int idx() { return idx_; };
-  inline int lx() {return lx_;};
+  inline int lx() { return lx_; };
   inline int ly() { return ly_; };
   inline int uy() { return ly_ + totalHeight_; };
   inline void setLy(int y) { ly_ = y; };
@@ -37,8 +37,8 @@ class Cluster {
   vector<shared_ptr<cell>> cells_;
   int lx_, ly_;      // Optimal position(lower left corner)
   int totalHeight_;  // total height as same as Ec
-  int Qc_;  // h(1) * y'(1) + sum_{ h(1) * [y'(i) - sum_h(k)]} i: 1 ~ N k: 1 ~
-            // i-1
+  int Qc_;           // h(1) * y'(1) + sum_{ h(1) * [y'(i) - sum_h(k)]} i: 1 ~ N k: 1 ~
+                     // i-1
 };
 
 class Col {

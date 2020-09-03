@@ -29,47 +29,53 @@ void Cluster::addCluster(Cluster& c) {
 
 long long Cluster::getInsertCost() {
   int num = this->cells_.size();
+  auto newInst = this->cells_[num - 1];
   if (num == 1) {
-    auto& inst = this->cells_[0];
-    return inst->height() * (pow(inst->oldlx() - this->lx_, 2) +
-                             pow(inst->oldly() - this->ly_, 2));
+    return newInst->height() *
+           (pow(newInst->oldlx() - this->lx_, 2) + pow(newInst->oldly() - this->ly_, 2));
   }
+  int newLoc = num - 1;
+  int curUy = this->uy();
+  for (int i = num - 2; i >= 0; i++) {
+    auto inst = this->cells_[i];
+    if (inst->oldly() + inst->height() > newInst->ly()) {
+      //[...,old,new] cost = old + new
+      long long cost1 =
+          inst->height() * pow(inst->oldly() - (curUy - newInst->height() - inst->height()), 2) +
+          newInst->height() * pow(newInst->oldly() - (curUy - newInst->height()), 2);
+      //[...,new,old]
+      long long cost2 = inst->height() * pow(inst->oldly() - (curUy - inst->height()), 2) +
+                        newInst->height() *
+                            pow(newInst->oldly() - (curUy - inst->height() - newInst->height()), 2);
+      if (cost1 > cost2) {
+        newLoc = i;
+        curUy -= inst->height();
+      } else
+        break;
+    } else
+      break;
+  }
+  this->cells_.pop_back();
+  this->cells_.insert(this->cells_.begin() + newLoc, newInst);
   long long cost = 0;
   int curLy = this->ly_;
-  for (int i = 0; i < num - 2; i++) {
+  for (int i = 0; i < num; i++) {
     auto& inst = this->cells_[i];
-    cost += inst->height() * (pow(inst->oldly() - curLy, 2) -
-                              pow(inst->oldly() - inst->ly(), 2));
+    if (inst == newInst) {
+      cost += inst->height() * (pow(inst->oldlx() - this->lx_, 2) + pow(inst->oldly() - curLy, 2));
+    } else {
+      cost += inst->height() * (pow(inst->oldly() - curLy, 2) - pow(inst->oldly() - inst->ly(), 2));
+    }
     curLy += inst->height();
   }
-  // change the order of the last two, choose the best order
-  auto inst1 = this->cells_[num - 2];  // The last one of original cells
-  auto inst2 = this->cells_[num - 1];  // The inserted cell
-  //[1,2]
-  long long cost1 =
-      inst2->height() * ((pow(inst2->oldlx() - this->lx_, 2) +
-                          pow(inst2->oldly() - curLy - inst1->height(), 2))) +
-      inst1->height() * (pow(inst1->oldly() - curLy, 2) -
-                         pow(inst1->oldly() - inst1->ly(), 2));
-  //[2,1]
-  long long cost2 =
-      inst2->height() * ((pow(inst2->oldlx() - this->lx_, 2) +
-                          pow(inst2->oldly() - curLy, 2))) +
-      inst1->height() * (pow(inst1->oldly() - curLy - inst2->height(), 2) -
-                         pow(inst1->oldly() - inst1->ly(), 2));
-  if (cost1 > cost2) {
-    this->cells_[num - 2] = inst2;
-    this->cells_[num - 1] = inst1;
-  }
-  return cost + min(cost1, cost2);
+  return cost;
 }
 
 long long Cluster::getTotalCost() {
   long long cost = 0;
   int curLy = this->ly_;
   for (auto& inst : this->cells_) {
-    cost += inst->height() *
-            (pow(inst->oldlx() - this->lx_, 2) + pow(inst->oldly() - curLy, 2));
+    cost += inst->height() * (pow(inst->oldlx() - this->lx_, 2) + pow(inst->oldly() - curLy, 2));
     curLy += inst->height();
   }
   return cost;
@@ -100,8 +106,7 @@ void Col::collapse(Cluster& c) {
 
 long long Col::PlaceCol(shared_ptr<cell>& inst) {
   int id = inst->idx();
-  if (this->Clusters_.size() == 0 ||
-      this->Clusters_.rbegin()->uy() <= inst->oldly()) {
+  if (this->Clusters_.size() == 0 || this->Clusters_.rbegin()->uy() <= inst->oldly()) {
     // create a new cluster
     Cluster c(inst, this->Clusters_.size(), this->idx_ * 8);
     this->Clusters_.push_back(c);
@@ -192,8 +197,7 @@ void Legalize::refinement() {
       vector<shared_ptr<cell>> bestList = cells;
       long long bestCost = c.getTotalCost();
       for (int n1 = 0, n2 = n1 + stride; n2 < num; n1++, n2++) {
-        vector<shared_ptr<cell>> slice(cells.begin() + n1,
-                                       cells.begin() + n2 + 1);
+        vector<shared_ptr<cell>> slice(cells.begin() + n1, cells.begin() + n2 + 1);
         while (next_permutation(slice.begin(), slice.end())) {
           vector<shared_ptr<cell>> curList;
           curList.assign(cells.begin(), cells.begin() + n1);
