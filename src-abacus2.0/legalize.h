@@ -69,7 +69,7 @@ class Legalize {
 
  private:
   vector<Col> COLS_;
-  multimap<int, shared_ptr<cell>> sortedCells;  // sorted in y order
+  vector<shared_ptr<cell>> sortedCells_;  // sorted in y order
 };
 
 #endif

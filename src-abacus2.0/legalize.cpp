@@ -110,7 +110,7 @@ long long Col::PlaceCol(shared_ptr<cell>& inst) {
     c.addCell(inst);
     this->collapse(c);
   }
-	long long cost = this->Clusters_[this->Clusters_.size() - 1].getInsertCost();
+  long long cost = this->Clusters_[this->Clusters_.size() - 1].getInsertCost();
   return cost;
 }
 
@@ -120,15 +120,19 @@ Legalize::Legalize() {
     COLS_.push_back(Col(i));
   }
   // sort cells in y order
-  for (auto& inst : CELLS) {
-    this->sortedCells.insert(make_pair(inst->ly(), inst));
-  }
+  this->sortedCells_.assign(CELLS.begin(), CELLS.end());
+  sort(this->sortedCells_.begin(), this->sortedCells_.end(),
+       [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
+         if (inst1->ly() == inst2->ly()) {
+           return inst1->height() > inst2->height();
+         } else
+           return inst1->ly() < inst2->ly();
+       });
 }
 
 void Legalize::doLegalize() {
   LOG << "Do legalization." << endl;
-  for (auto& cell_pair : this->sortedCells) {
-    auto& inst = cell_pair.second;
+  for (auto& inst : this->sortedCells_) {
     int id = inst->idx();
     long long bestCost = LLONG_MAX;
     Col bestCol;
