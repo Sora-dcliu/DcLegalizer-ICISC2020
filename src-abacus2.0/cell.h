@@ -1,17 +1,14 @@
 #ifndef _CELL_H_
 #define _CELL_H_
 
+#include <cmath>
+
 using namespace std;
 
 class cell {
  public:
   cell(int idx, int height, int lx, int ly)
-      : idx_(idx),
-        height_(height),
-        old_lx_(lx),
-        lx_(lx),
-        old_ly_(ly),
-        ly_(ly){};
+      : idx_(idx), height_(height), old_lx_(lx), lx_(lx), old_ly_(ly), ly_(ly){};
 
   inline int oldlx() { return old_lx_; };
   inline int oldly() { return old_ly_; };
@@ -27,6 +24,12 @@ class cell {
   inline void setLoc(int lx, int ly) {
     lx_ = lx;
     ly_ = ly;
+  };
+  inline long long getCost(int lx, int ly) {
+    return height_ * (pow(old_lx_ - lx, 2) + pow(old_ly_ - ly, 2));
+  };
+  inline long long getCost() {
+    return height_ * (pow(old_lx_ - lx_, 2) + pow(old_ly_ - ly_, 2));
   };
 
  private:

@@ -68,7 +68,7 @@ for y in range(int(miny/8)-1, int(maxy/8)+1):
 
 #plot
 #grid setting
-fig = plt.figure(figsize=(8, 8))
+fig = plt.figure(figsize=(10, 10))
 fig.tight_layout()
 
 #ax - result solution

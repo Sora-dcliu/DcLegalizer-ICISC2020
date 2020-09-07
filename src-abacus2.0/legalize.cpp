@@ -15,7 +15,6 @@ Cluster::Cluster(shared_ptr<cell>& inst, int idx, int lx) {
 }
 
 void Cluster::addCell(shared_ptr<cell>& inst) {
-  this->cells_.push_back(inst);
   this->Qc_ += inst->height() * (inst->oldly() - this->totalHeight_);
   this->totalHeight_ += inst->height();
 }
@@ -27,17 +26,21 @@ void Cluster::addCluster(Cluster& c) {
   this->totalHeight_ += c.totalHeight();
 }
 
-long long Cluster::getInsertCost() {
+long long Cluster::getInsertCost(shared_ptr<cell>& newInst) {
+  int id = newInst->idx();
   int num = this->cells_.size();
-  auto newInst = this->cells_[num - 1];
-  if (num == 1) {
-    return newInst->height() *
-           (pow(newInst->oldlx() - this->lx_, 2) + pow(newInst->oldly() - this->ly_, 2));
+  if (num == 1 && this->cells_[0] == newInst) {
+    return newInst->getCost(this->lx_, this->ly_);
   }
-  int newLoc = num - 1;
+  int newLoc = num;
   int curUy = this->uy();
-  for (int i = num - 2; i >= 0; i++) {
+  for (int i = num - 1; i >= 0; i--) {
     auto inst = this->cells_[i];
+    if (inst->oldly() > newInst->oldly() + newInst->height()) {
+      curUy -= inst->height();
+      newLoc = i;
+      continue;
+    }
     if (inst->oldly() + inst->height() > newInst->ly()) {
       //[...,old,new] cost = old + new
       long long cost1 =
@@ -55,16 +58,15 @@ long long Cluster::getInsertCost() {
     } else
       break;
   }
-  this->cells_.pop_back();
   this->cells_.insert(this->cells_.begin() + newLoc, newInst);
   long long cost = 0;
   int curLy = this->ly_;
-  for (int i = 0; i < num; i++) {
+  for (int i = 0; i <= num; i++) {
     auto& inst = this->cells_[i];
     if (inst == newInst) {
-      cost += inst->height() * (pow(inst->oldlx() - this->lx_, 2) + pow(inst->oldly() - curLy, 2));
+      cost += inst->getCost(this->lx_, curLy);
     } else {
-      cost += inst->height() * (pow(inst->oldly() - curLy, 2) - pow(inst->oldly() - inst->ly(), 2));
+      cost += inst->getCost(inst->lx(), curLy) - inst->getCost();
     }
     curLy += inst->height();
   }
@@ -75,7 +77,7 @@ long long Cluster::getTotalCost() {
   long long cost = 0;
   int curLy = this->ly_;
   for (auto& inst : this->cells_) {
-    cost += inst->height() * (pow(inst->oldlx() - this->lx_, 2) + pow(inst->oldly() - curLy, 2));
+    cost += inst->getCost(this->lx_, curLy);
     curLy += inst->height();
   }
   return cost;
@@ -89,19 +91,29 @@ void Cluster::setLocations() {
   }
 }
 
-void Col::collapse(Cluster& c) {
+int Col::collapse(Cluster& c) {
+  int idx = c.idx();
   c.setLy(round(1.0 * c.Qc() / c.totalHeight()));
   if (c.ly() < 0) c.setLy(0);
-  if (c.uy() > Row_cnt * 8 - 1) c.setLy(Row_cnt * 8 - 1 - c.totalHeight());
-  // if overlap with predecessor c'
+  if (c.uy() > Row_cnt * 8) c.setLy(Row_cnt * 8 - c.totalHeight());
+  // if overlap with predecessor c-pre or next
   if (c.idx() > 0) {
     auto& pre_c = this->Clusters_[c.idx() - 1];
     if (pre_c.uy() > c.ly()) {  // cluster overlap
       pre_c.addCluster(c);
-      this->Clusters_.erase(this->Clusters_.begin() + c.idx());
-      collapse(pre_c);
+      this->deletCluster(c.idx());
+      idx = collapse(pre_c);
     }
   }
+  if (c.idx() < this->Clusters_.size() - 1) {
+    auto& next_c = this->Clusters_[c.idx() + 1];
+    if (c.uy() > next_c.ly()) {
+      c.addCluster(next_c);
+      this->deletCluster(next_c.idx());
+      idx = collapse(c);
+    }
+  }
+  return idx;
 }
 
 long long Col::PlaceCol(shared_ptr<cell>& inst) {
@@ -110,12 +122,108 @@ long long Col::PlaceCol(shared_ptr<cell>& inst) {
     // create a new cluster
     Cluster c(inst, this->Clusters_.size(), this->idx_ * 8);
     this->Clusters_.push_back(c);
+    int idx = this->collapse(this->Clusters_[this->Clusters_.size() - 1]);
+    return this->Clusters_[idx].getInsertCost(inst);
   } else {
     auto& c = this->Clusters_[this->Clusters_.size() - 1];
     c.addCell(inst);
     this->collapse(c);
   }
-  long long cost = this->Clusters_[this->Clusters_.size() - 1].getInsertCost();
+  long long cost = this->Clusters_[this->Clusters_.size() - 1].getInsertCost(inst);
+  return cost;
+}
+
+long long Col::popReduce(shared_ptr<cell>& inst) {
+  long long cost = 0;
+  int c_cnt = this->Clusters_.size();
+  for (int i = 0; i < c_cnt; i++) {
+    auto cells = Clusters_[i].cells();
+    auto iter = find(cells.begin(), cells.end(), inst);
+    if (iter != cells.end()) {
+      if (cells.size() == 1) {
+        this->deletCluster(i);
+        return 0;
+      }
+      cells.erase(iter);
+      Col subCol(this->idx_);
+      for (auto& subinst : cells) {
+        subCol.PlaceCol(subinst);
+      }
+      auto& subclusters = subCol.Clusters();
+      for (auto c : subclusters) {
+        int curLy = c.ly();
+        for (auto& subinst : c.cells()) {
+          if (subinst == inst) throw "Error - popReduce.";
+          if (subinst->ly() != curLy) {
+            cost += subinst->getCost(subinst->lx(), curLy) - subinst->getCost();
+          }
+          curLy += subinst->height();
+        }
+      }
+
+      if (cost > 0)
+        throw "Erro - positive pop cost.";
+      else {
+        this->deletCluster(i);
+        this->Clusters_.insert(this->Clusters_.begin() + i, subclusters.begin(), subclusters.end());
+        for (int j = i; j < this->Clusters_.size(); j++) {
+          this->Clusters_[j].setIdx(j);
+        }
+        return cost;
+      }
+    }
+  }
+  throw "Eror - inst not found.";
+  return 0;
+}
+
+long long Col::ReInsertCol(shared_ptr<cell>& inst) {
+  int id = inst->idx();
+  int num = this->Clusters_.size();
+  long long cost = LLONG_MAX;
+  if (num == 0) {
+    Cluster newc(inst, num, this->idx_ * 8);
+    this->Clusters_.push_back(newc);
+    this->collapse(this->Clusters_[0]);
+    cost = inst->getCost(this->idx_ * 8, this->Clusters_[0].ly()) - inst->getCost();
+    return cost;
+  }
+  if (this->Clusters_[0].ly() >= inst->oldly() + inst->height()) {
+    // create a new cluster
+    Cluster newc(inst, 0, this->idx_ * 8);
+    for (int j = 0; j < num; j++) this->Clusters_[j].setIdx(j + 1);
+    this->Clusters_.insert(this->Clusters_.begin(), newc);
+    this->collapse(this->Clusters_[0]);
+    cost = this->Clusters_[0].getInsertCost(inst) - inst->getCost();
+    return cost;
+  }
+  if (this->Clusters_[num - 1].uy() <= inst->oldly()) {
+    // create a new cluster
+    Cluster newc(inst, num, this->idx_ * 8);
+    this->Clusters_.push_back(newc);
+    this->collapse(this->Clusters_[num]);
+    cost = this->Clusters_[this->Clusters_.size() - 1].getInsertCost(inst) - inst->getCost();
+    return cost;
+  }
+  for (int i = num - 1; i >= 0; i--) {
+    auto& c = this->Clusters_[i];
+    if (c.ly() < inst->oldly() + inst->height() && c.uy() > inst->oldly()) {
+      // insert into existent cluster
+      c.addCell(inst);
+      int idx = this->collapse(c);
+      cost = this->Clusters_[idx].getInsertCost(inst) - inst->getCost();
+      break;
+    } else if (c.uy() <= inst->oldly()) {
+      // create a new cluster
+      Cluster newc(inst, i + 1, this->idx_ * 8);
+      this->Clusters_.insert(this->Clusters_.begin() + i + 1, newc);
+      for (int j = i + 2; j <= num; j++) this->Clusters_[j].setIdx(j);
+      this->collapse(this->Clusters_[i + 1]);
+      cost = inst->getCost(this->idx_ * 8, inst->oldly()) - inst->getCost();
+      break;
+    }
+  }
+  if (cost == LLONG_MAX) throw "Error - Reinsert cost.";
   return cost;
 }
 
@@ -170,12 +278,69 @@ void Legalize::doLegalize() {
     }
     COLS_[bestCol.idx()] = bestCol;
     // set final position
+    bestCol.Clusters().rbegin()->setLocations();
+  }
+}
+
+void Legalize::reFind() {
+  LOG << "Refinding." << endl;
+  // Arrange cells in descending order of uy
+  auto reSortedCell(CELLS);
+  sort(reSortedCell.begin(), reSortedCell.end(),
+       [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
+         if (inst1->uy() == inst2->uy())
+           return inst1->height() > inst2->height();
+         else
+           return inst1->uy() > inst2->uy();
+       });
+
+  for (auto& inst : reSortedCell) {
+    int nearestCol = round(inst->oldlx() / 8);
+    Col originCol(this->COLS_[inst->lx() / 8]);
+    Col bestCol(originCol);
+    // The added cost of movement must not be greater than the reduced cost of origin col
+    long long bestCost = -originCol.popReduce(inst);
+    bool left = true, right = true;
+    for (int i = 0; left || right; i++) {
+      if (inst->getCost((nearestCol - i) * 8, inst->oldly()) - inst->getCost() >= bestCost)
+        left = false;
+      if (inst->getCost((nearestCol + i) * 8, inst->oldly()) - inst->getCost() >= bestCost)
+        right = false;
+      // left
+      if (nearestCol - i >= 0 && left && nearestCol - i != originCol.idx()) {
+        auto curCol = COLS_[nearestCol - i];
+        long long curCost = curCol.ReInsertCol(inst);
+        if (curCost < bestCost) {
+          bestCost = curCost;
+          bestCol = curCol;
+        }
+      } else if (nearestCol - i < 0)
+        left = false;
+
+      // right
+      if (nearestCol + i < Col_cnt && right && i != 0 && nearestCol + i != originCol.idx()) {
+        auto curCol = COLS_[nearestCol + i];
+        long long curCost = curCol.ReInsertCol(inst);
+        if (curCost < bestCost) {
+          bestCost = curCost;
+          bestCol = curCol;
+        }
+      } else if (nearestCol + i >= Col_cnt)
+        right = false;
+    }
+    if (bestCol.idx() == inst->lx() / 8) continue;
+    COLS_[bestCol.idx()] = bestCol;
+    COLS_[originCol.idx()] = originCol;
+    // set final position
+    int id = inst->idx();
+    int i = 0;
     for (auto& c : bestCol.Clusters()) {
-      int curLy = c.ly();
-      for (auto& inst : c.cells()) {
-        inst->setLoc(bestCol.idx() * 8, curLy);
-        curLy += inst->height();
-      }
+      c.setLocations();
+      int y = CELLS[869]->ly();
+      int k = 0;
+    }
+    for (auto& c : originCol.Clusters()) {
+      c.setLocations();
     }
   }
 }
@@ -238,4 +403,23 @@ long long Legalize::getTotalCost() {
     }
   }
   return cost;
+}
+
+void Legalize::checkLegal() {
+  vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
+  for (auto& inst : CELLS) {
+    if (inst->lx() % 8)
+      throw "Error - Illegal lx.";
+    else if (inst->lx() < 0 || inst->ux() > Col_cnt * 8 || inst->ly() < 0 ||
+             inst->uy() > Row_cnt * 8) {
+      throw "Error - beyond the border.";
+    } else {
+      for (int i = inst->ly(); i < inst->uy(); i++) {
+        if (grid[inst->lx() / 8][i]) {
+          throw "Error - overlap.";
+        } else
+          grid[inst->lx() / 8][i] = inst;
+      }
+    }
+  }
 }

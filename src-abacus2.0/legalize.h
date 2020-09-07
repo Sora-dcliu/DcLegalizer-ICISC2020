@@ -21,14 +21,15 @@ class Cluster {
   inline int Qc() { return Qc_; };
 
   inline const vector<shared_ptr<cell>>& cells() { return cells_; };
+  inline void setIdx(int idx) { idx_ = idx; };
 
-  void addCell(shared_ptr<cell>& inst);
-  void addCluster(Cluster& c);
+  inline void addCell(shared_ptr<cell>& inst);
+  inline void addCluster(Cluster& c);
 
   void setCellsOrder(vector<shared_ptr<cell>>& newCells) {
     cells_.assign(newCells.begin(), newCells.end());
   };
-  long long getInsertCost();
+  long long getInsertCost(shared_ptr<cell>& newInst);
   long long getTotalCost();
   void setLocations();
 
@@ -50,7 +51,18 @@ class Col {
   inline vector<Cluster>& Clusters() { return Clusters_; };
 
   long long PlaceCol(shared_ptr<cell>& inst);
-  void collapse(Cluster& c);
+  int collapse(Cluster& c);//Merge clusters and return the new IDx of the original cluster
+
+  // for reSearch
+  long long popReduce(shared_ptr<cell>& inst);  // The reduced cost of removing a cell
+  long long ReInsertCol(shared_ptr<cell>& inst);
+  void deletCluster(int idx) {
+    int num = Clusters_.size();
+    Clusters_.erase(Clusters_.begin() + idx);
+    for (int i = idx; i < Clusters_.size(); i++) {
+      Clusters_[i].setIdx(i);
+    }
+  };
 
  private:
   int idx_;
@@ -63,9 +75,11 @@ class Legalize {
   Legalize();
 
   void doLegalize();
+  void reFind();
   void refinement();
 
   long long getTotalCost();
+  void checkLegal();
 
  private:
   vector<Col> COLS_;

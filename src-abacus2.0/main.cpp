@@ -17,9 +17,12 @@ int main(int argc, char* argv[]) {
     getInput(inputFile);
     Legalize leg;
     leg.doLegalize();
+    leg.reFind();
     leg.refinement();
     long long cost = leg.getTotalCost();
     LOG << "Total cost - " << cost << endl;
+
+    leg.checkLegal();
     // dump output file
     Output(outputFile);
   } catch (const char* msg) {
