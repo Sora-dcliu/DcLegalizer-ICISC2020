@@ -280,6 +280,9 @@ void Legalize::doLegalize() {
     // set final position
     bestCol.Clusters().rbegin()->setLocations();
   }
+  for (int i = 0; i < Col_cnt; i++) {
+    this->last_changedCols_.insert(i);
+  }
 }
 
 bool Legalize::reFind() {
@@ -303,13 +306,18 @@ bool Legalize::reFind() {
     // The added cost of movement must not be greater than the reduced cost of origin col
     long long bestCost = -originCol.popReduce(inst);
     bool left = true, right = true;
+    bool changed = false;  // wether the current column has been changed
+    if (this->last_changedCols_.find(inst->lx() / 8) != this->last_changedCols_.end())
+      changed = true;
     for (int i = 0; left || right; i++) {
       if (inst->getCost((nearestCol - i) * 8, inst->oldly()) - inst->getCost() >= bestCost)
         left = false;
       if (inst->getCost((nearestCol + i) * 8, inst->oldly()) - inst->getCost() >= bestCost)
         right = false;
       // left
-      if (nearestCol - i >= 0 && left && nearestCol - i != originCol.idx()) {
+      if (nearestCol - i >= 0 && left && nearestCol - i != originCol.idx() &&
+          (changed ||
+           this->last_changedCols_.find(nearestCol - i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol - i];
         long long curCost = curCol.ReInsertCol(inst);
         if (curCost < bestCost) {
@@ -320,7 +328,9 @@ bool Legalize::reFind() {
         left = false;
 
       // right
-      if (nearestCol + i < Col_cnt && right && i != 0 && nearestCol + i != originCol.idx()) {
+      if (nearestCol + i < Col_cnt && right && i != 0 && nearestCol + i != originCol.idx() &&
+          (changed ||
+           this->last_changedCols_.find(nearestCol + i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol + i];
         long long curCost = curCol.ReInsertCol(inst);
         if (curCost < bestCost) {
@@ -330,22 +340,26 @@ bool Legalize::reFind() {
       } else if (nearestCol + i >= Col_cnt)
         right = false;
     }
-    if (bestCol.idx() == inst->lx() / 8) continue;
-    else improve = true;
+    if (bestCol.idx() == inst->lx() / 8)
+      continue;
+    else
+      improve = true;
     COLS_[bestCol.idx()] = bestCol;
     COLS_[originCol.idx()] = originCol;
+    this->cur_changedCols.insert(bestCol.idx());
+    this->cur_changedCols.insert(originCol.idx());
+    this->last_changedCols_.insert(bestCol.idx());
+    this->last_changedCols_.insert(originCol.idx());
     // set final position
-    int id = inst->idx();
-    int i = 0;
     for (auto& c : bestCol.Clusters()) {
       c.setLocations();
-      int y = CELLS[869]->ly();
-      int k = 0;
     }
     for (auto& c : originCol.Clusters()) {
       c.setLocations();
     }
   }
+  this->last_changedCols_.swap(this->cur_changedCols);
+  this->cur_changedCols.clear();
   return improve;
 }
 
@@ -410,7 +424,7 @@ long long Legalize::getTotalCost() {
 }
 
 void Legalize::checkLegal() {
-  cout<<"[EVL] Check legality."<<endl;
+  cout << "[EVL] Check legality." << endl;
   vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
   for (auto& inst : CELLS) {
     if (inst->lx() % 8)
@@ -427,5 +441,5 @@ void Legalize::checkLegal() {
       }
     }
   }
-  cout<<"[EVL] Legal!"<<endl;
+  cout << "[EVL] Legal!" << endl;
 }

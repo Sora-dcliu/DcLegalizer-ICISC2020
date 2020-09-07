@@ -2,6 +2,7 @@
 #define _LEGALIZE_H
 
 #include <map>
+#include <unordered_set>
 #include <vector>
 
 #include "global.h"
@@ -51,7 +52,7 @@ class Col {
   inline vector<Cluster>& Clusters() { return Clusters_; };
 
   long long PlaceCol(shared_ptr<cell>& inst);
-  int collapse(Cluster& c);//Merge clusters and return the new IDx of the original cluster
+  int collapse(Cluster& c);  // Merge clusters and return the new IDx of the original cluster
 
   // for reSearch
   long long popReduce(shared_ptr<cell>& inst);  // The reduced cost of removing a cell
@@ -84,6 +85,10 @@ class Legalize {
  private:
   vector<Col> COLS_;
   vector<shared_ptr<cell>> sortedCells_;  // sorted in y order
+
+  // for iterative refind
+  unordered_set<int> last_changedCols_;
+  unordered_set<int> cur_changedCols;
 };
 
 #endif

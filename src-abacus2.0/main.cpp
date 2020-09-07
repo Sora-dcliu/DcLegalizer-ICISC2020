@@ -22,16 +22,22 @@ int main(int argc, char* argv[]) {
     getInput(inputFile);
     Legalize leg;
     leg.doLegalize();
-    while (leg.reFind())
-      ;
+    long long cost = leg.getTotalCost();
+    LOG << "Displacement cost: " << cost << endl;
+    while (leg.reFind()) {
+      long long curCost = leg.getTotalCost();
+      double impRatio = 1.0 * (cost - curCost) / cost;
+      LOG << "Displacement cost: " << curCost << " improve: " << impRatio * 100 << "%" << endl;
+      if (impRatio * 100 < 0.1) break;
+      cost = curCost;
+    }
     leg.refinement();
     // dump output file
     Output(outputFile);
     auto end = system_clock::now();
     auto duration = duration_cast<microseconds>(end - start);
     LOG << "Run time: " << double(duration.count()) / microseconds::period::den << "(s)." << endl;
-    long long cost = leg.getTotalCost();
-    LOG << "Total cost - " << cost << endl;
+    LOG << "Total cost - " << leg.getTotalCost() << endl;
     leg.checkLegal();
   } catch (const char* msg) {
     cerr << msg << endl;
