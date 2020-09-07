@@ -79,9 +79,6 @@ class Legalize {
   bool reFind();
   void refinement();
 
-  long long getTotalCost();
-  void checkLegal();
-
  private:
   vector<Col> COLS_;
   vector<shared_ptr<cell>> sortedCells_;  // sorted in y order

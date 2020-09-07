@@ -19,5 +19,6 @@ extern vector<shared_ptr<cell>> CELLS;
 //global function
 void getInput(const string& inputFile);
 void Output(const string& outputFile);
-void initBins();
+long long getTotalCost();
+void checkLegal();
 #endif

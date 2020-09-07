@@ -413,17 +413,15 @@ void Legalize::refinement() {
   }
 }
 
-long long Legalize::getTotalCost() {
+long long getTotalCost() {
   long long cost = 0;
-  for (auto& col : this->COLS_) {
-    for (auto& c : col.Clusters()) {
-      cost += c.getTotalCost();
-    }
+  for(auto& inst : CELLS) {
+    cost += inst->getCost();
   }
   return cost;
 }
 
-void Legalize::checkLegal() {
+void checkLegal() {
   cout << "[EVL] Check legality." << endl;
   vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
   for (auto& inst : CELLS) {
