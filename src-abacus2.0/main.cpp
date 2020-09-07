@@ -1,5 +1,9 @@
+#include <chrono>
+
 #include "global.h"
 #include "legalize.h"
+
+using namespace chrono;
 
 #define LOG cout << "[INFO] "
 // Variable initialization
@@ -9,6 +13,7 @@ int Cell_cnt;
 vector<shared_ptr<cell>> CELLS;
 
 int main(int argc, char* argv[]) {
+  auto start = system_clock::now();
   try {
     if (argc != 3) throw "Eror - wrong number of command-line arguments.";
     string inputFile = argv[1];
@@ -17,14 +22,17 @@ int main(int argc, char* argv[]) {
     getInput(inputFile);
     Legalize leg;
     leg.doLegalize();
-    leg.reFind();
+    while (leg.reFind())
+      ;
     leg.refinement();
-    long long cost = leg.getTotalCost();
-    LOG << "Total cost - " << cost << endl;
-
-    leg.checkLegal();
     // dump output file
     Output(outputFile);
+    auto end = system_clock::now();
+    auto duration = duration_cast<microseconds>(end - start);
+    LOG << "Run time: " << double(duration.count()) / microseconds::period::den << "(s)." << endl;
+    long long cost = leg.getTotalCost();
+    LOG << "Total cost - " << cost << endl;
+    leg.checkLegal();
   } catch (const char* msg) {
     cerr << msg << endl;
     exit(1);

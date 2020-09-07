@@ -282,8 +282,9 @@ void Legalize::doLegalize() {
   }
 }
 
-void Legalize::reFind() {
+bool Legalize::reFind() {
   LOG << "Refinding." << endl;
+  bool improve = false;
   // Arrange cells in descending order of uy
   auto reSortedCell(CELLS);
   sort(reSortedCell.begin(), reSortedCell.end(),
@@ -295,6 +296,7 @@ void Legalize::reFind() {
        });
 
   for (auto& inst : reSortedCell) {
+    int idx = inst->idx();
     int nearestCol = round(inst->oldlx() / 8);
     Col originCol(this->COLS_[inst->lx() / 8]);
     Col bestCol(originCol);
@@ -329,6 +331,7 @@ void Legalize::reFind() {
         right = false;
     }
     if (bestCol.idx() == inst->lx() / 8) continue;
+    else improve = true;
     COLS_[bestCol.idx()] = bestCol;
     COLS_[originCol.idx()] = originCol;
     // set final position
@@ -343,6 +346,7 @@ void Legalize::reFind() {
       c.setLocations();
     }
   }
+  return improve;
 }
 
 void Legalize::refinement() {
@@ -406,6 +410,7 @@ long long Legalize::getTotalCost() {
 }
 
 void Legalize::checkLegal() {
+  cout<<"[EVL] Check legality."<<endl;
   vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
   for (auto& inst : CELLS) {
     if (inst->lx() % 8)
@@ -422,4 +427,5 @@ void Legalize::checkLegal() {
       }
     }
   }
+  cout<<"[EVL] Legal!"<<endl;
 }

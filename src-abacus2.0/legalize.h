@@ -75,7 +75,7 @@ class Legalize {
   Legalize();
 
   void doLegalize();
-  void reFind();
+  bool reFind();
   void refinement();
 
   long long getTotalCost();
