@@ -384,6 +384,14 @@ long long getTotalCost() {
   return cost;
 }
 
+long long getTotalMacroCost() {
+  long long cost = 0;
+  for (auto& inst : CELLS) {
+    if (inst->isMacro()) cost += inst->getCost();
+  }
+  return cost;
+}
+
 void checkLegal() {
   cout << "[EVL] Check legality." << endl;
   vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
