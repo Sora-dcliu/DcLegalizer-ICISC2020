@@ -20,18 +20,11 @@ int main(int argc, char* argv[]) {
     string outputFile = argv[2];
     // Reading inoput file
     getInput(inputFile);
+
+    // do legalizaion
     Legalize leg;
     leg.doLegalize();
-    long long cost = getTotalCost();
-    LOG << "Displacement cost: " << cost << endl;
-    while (leg.reFind()) {
-      long long curCost = getTotalCost();
-      double impRatio = 1.0 * (cost - curCost) / cost;
-      LOG << "Displacement cost: " << curCost << " improve: " << impRatio * 100 << "%" << endl;
-      if (impRatio * 100 < 0.1) break;
-      cost = curCost;
-    }
-    //leg.VerMove();
+
     // dump output file
     Output(outputFile);
     auto end = system_clock::now();

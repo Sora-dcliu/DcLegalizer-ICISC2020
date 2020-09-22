@@ -41,7 +41,7 @@ long long Cluster::getInsertCost(shared_ptr<cell>& newInst) {
       newLoc = i;
       continue;
     }
-    if (inst->oldly() + inst->height() > newInst->ly()) {
+    if (inst->oldly() + inst->height() > newInst->oldly()) {
       //[...,old,new] cost = old + new
       long long cost1 =
           inst->height() * pow(inst->oldly() - (curUy - newInst->height() - inst->height()), 2) +
@@ -228,7 +228,7 @@ long long Col::ReInsertCol(shared_ptr<cell>& inst) {
 }
 
 Legalize::Legalize() {
-  // general rows
+  // general columns
   for (int i = 0; i < Col_cnt; i++) {
     COLS_.push_back(Col(i));
   }
@@ -363,8 +363,8 @@ bool Legalize::reFind() {
   return improve;
 }
 
-void Legalize::refinement() {
-  LOG << "Refinement." << endl;
+void Legalize::VerMove() {
+  LOG << "Vertical move." << endl;
   long long totalCost = 0;
   for (auto& co : this->COLS_) {
     for (auto& c : co.Clusters()) {
@@ -415,7 +415,7 @@ void Legalize::refinement() {
 
 long long getTotalCost() {
   long long cost = 0;
-  for(auto& inst : CELLS) {
+  for (auto& inst : CELLS) {
     cost += inst->getCost();
   }
   return cost;

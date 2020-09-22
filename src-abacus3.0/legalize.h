@@ -11,9 +11,8 @@ using namespace std;
 
 class Cluster {
  public:
-  Cluster(shared_ptr<cell>& inst, int idx, int lx);
+  Cluster(shared_ptr<cell>& inst, int lx);
 
-  inline int idx() { return idx_; };
   inline int lx() { return lx_; };
   inline int ly() { return ly_; };
   inline int uy() { return ly_ + totalHeight_; };
@@ -22,7 +21,6 @@ class Cluster {
   inline int Qc() { return Qc_; };
 
   inline const vector<shared_ptr<cell>>& cells() { return cells_; };
-  inline void setIdx(int idx) { idx_ = idx; };
 
   inline void addCell(shared_ptr<cell>& inst);
   inline void addCluster(Cluster& c);
@@ -30,12 +28,11 @@ class Cluster {
   void setCellsOrder(vector<shared_ptr<cell>>& newCells) {
     cells_.assign(newCells.begin(), newCells.end());
   };
-  long long getInsertCost(shared_ptr<cell>& newInst);
+  long long getInsertCost(shared_ptr<cell>& newInst, bool calcCost);
   long long getTotalCost();
   void setLocations();
 
  private:
-  int idx_;
   vector<shared_ptr<cell>> cells_;
   int lx_, ly_;      // Optimal position(lower left corner)
   int totalHeight_;  // total height as same as Ec
@@ -49,26 +46,23 @@ class Col {
   Col(int idx) : idx_(idx){};
 
   inline int idx() { return idx_; };
-  inline vector<Cluster>& Clusters() { return Clusters_; };
+  inline map<int, Cluster>& Clusters() { return Clusters_; };
 
-  long long PlaceCol(shared_ptr<cell>& inst);
-  int collapse(Cluster& c);  // Merge clusters and return the new IDx of the original cluster
+  long long InsertCol(shared_ptr<cell>& inst);  // Insert the cell and calculate the cost
 
-  // for reSearch
-  long long popReduce(shared_ptr<cell>& inst);  // The reduced cost of removing a cell
-  long long ReInsertCol(shared_ptr<cell>& inst);
-  void deletCluster(int idx) {
-    int num = Clusters_.size();
-    Clusters_.erase(Clusters_.begin() + idx);
-    for (int i = idx; i < Clusters_.size(); i++) {
-      Clusters_[i].setIdx(i);
-    }
-  };
+  // Check if the new cell(old_ly) overlaps with the existing cluster
+  map<int, Cluster>::iterator OverlapCluster(shared_ptr<cell>& inst);
+
+  long long DeleteInst(shared_ptr<cell>& inst);  // Delete the cell and calculate the cost
+
+  // Merge clusters and return the iterator of the changed cluster
+  map<int, Cluster>::iterator collapse(map<int, Cluster>::iterator iter);
+  void determindLoc();
 
  private:
   int idx_;
-
-  vector<Cluster> Clusters_;
+  map<int, Cluster> Clusters_;  // Sort by ly coordinate
+  vector<int> changedCluster_;  // mark the changede cluster
 };
 
 class Legalize {
@@ -76,17 +70,20 @@ class Legalize {
   Legalize();
 
   void doLegalize();
-  bool reFind();   // Research for the optimal location
-  //void HorSwap();  // Swap the positions of cells across columns
-  void VerMove();  // Look for the optimal optimal order in the same column
+  void ColPlace(vector<shared_ptr<cell>>& insts);
+
+  void reFind(vector<shared_ptr<cell>>& insts);
 
  private:
-  vector<Col> COLS_;
-  vector<shared_ptr<cell>> sortedCells_;  // sorted in y order
+  vector<Col> COLS_;                      // columns
+  vector<shared_ptr<cell>> sortedMacro_;  // According ly coordinate
+  vector<shared_ptr<cell>> sortedStd_;    // According to ly coordinate
 
-  // for iterative refind
+  // for iteratibr refind
   unordered_set<int> last_changedCols_;
   unordered_set<int> cur_changedCols;
+
+  long long bestCost;
 };
 
 #endif
