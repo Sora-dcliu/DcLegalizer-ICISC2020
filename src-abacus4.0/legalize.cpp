@@ -3,6 +3,8 @@
 #include <climits>
 #include <cmath>
 
+#include "bipartite.h"
+
 #define LOG cout << "[LG] "
 #define CP LOG << "[PLACE] "
 
@@ -32,6 +34,7 @@ void Legalize::doLegalize() {
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
   this->reFind();
+  this->BipartiteGraphMatch();
 }
 
 void Legalize::ColPlace() {
@@ -161,6 +164,12 @@ void Legalize::reFind() {
     bestCost = curCost;
     if (improve > 0.1) reFind();
   }
+}
+
+void Legalize::BipartiteGraphMatch() {
+  LOG << "Bipartite graph match." << endl;
+  BGM bgm;
+  bgm.doBipartiteGraphMatch();
 }
 
 long long Col::InsertCol(shared_ptr<cell>& inst) {
@@ -380,14 +389,6 @@ long long getTotalCost() {
   long long cost = 0;
   for (auto& inst : CELLS) {
     cost += inst->getCost();
-  }
-  return cost;
-}
-
-long long getTotalMacroCost() {
-  long long cost = 0;
-  for (auto& inst : CELLS) {
-    if (inst->isMacro()) cost += inst->getCost();
   }
   return cost;
 }

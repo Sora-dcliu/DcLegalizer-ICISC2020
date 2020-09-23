@@ -20,6 +20,6 @@ extern vector<shared_ptr<cell>> CELLS;
 void getInput(const string& inputFile);
 void Output(const string& outputFile);
 long long getTotalCost();
-long long getTotalMacroCost();
 void checkLegal();
+
 #endif
