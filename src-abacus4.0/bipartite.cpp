@@ -27,7 +27,6 @@ BGM::BGM() {
 
 void BGM::doBipartiteGraphMatch() {
   LOG << "Begin." << endl;
-  int cnt = 0;
   for (int x = 0; x <= this->max_x_; x++) {
     for (int y = 0; y <= this->max_y_; y++) {
       set<shared_ptr<cell>> insts;
@@ -44,7 +43,6 @@ void BGM::doBipartiteGraphMatch() {
           uy = max(uy, inst->ly());
         }
         this->KM_match(lx, ly, ux, uy, insts);
-        cnt++;
         y = uy;
       }
     }
@@ -126,7 +124,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
         if (vis_bin[j]) w_bin[j] -= minz;
     }
   }
-
+  // update location
   for (int i = 0; i < cnt_bin; i++) {
     int x = lx + i / height;
     int y = ly + i % height;
