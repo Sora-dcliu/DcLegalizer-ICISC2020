@@ -43,7 +43,6 @@ void BGM::doBipartiteGraphMatch() {
           uy = max(uy, inst->ly());
         }
         this->KM_match(lx, ly, ux, uy, insts);
-        y = uy;
       }
     }
   }
@@ -134,7 +133,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
       auto& inst = vec_insts[c_bin[i]];
       bin.setInst(inst);
       inst->setLoc(x * 8, y);
-    } else
+    } else if(insts.find(bin.Inst()) != insts.end())
       bin.deleteInst();
   }
   cleanKM();

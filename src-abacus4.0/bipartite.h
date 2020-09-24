@@ -32,7 +32,7 @@ class Bin {
   }
 
   inline void mark() { visited_ = true; };
-  inline void unmark() { visited_ = false; };
+  inline void unmark() {visited_ = false;};
   inline bool visited() { return visited_; };
 
  private:

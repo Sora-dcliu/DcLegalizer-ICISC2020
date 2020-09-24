@@ -170,6 +170,7 @@ void Legalize::BipartiteGraphMatch() {
   LOG << "Bipartite graph match." << endl;
   BGM bgm;
   bgm.doBipartiteGraphMatch();
+  LOG<<" [BGM] Compelete."<<endl;
 }
 
 long long Col::InsertCol(shared_ptr<cell>& inst) {
