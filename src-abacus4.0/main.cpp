@@ -27,6 +27,7 @@ int main(int argc, char* argv[]) {
 
     // dump output file
     Output(outputFile);
+    WriteGds(outputFile+".gds");
     auto end = system_clock::now();
     auto duration = duration_cast<microseconds>(end - start);
     LOG << "Run time: " << double(duration.count()) / microseconds::period::den << "(s)." << endl;

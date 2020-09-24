@@ -48,6 +48,7 @@ void BGM::doBipartiteGraphMatch() {
   }
 }
 
+// Depth-first search clustering
 void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
   auto& bin = Grid[x][y];
   if (bin.isStd() && !bin.visited()) {
@@ -133,7 +134,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
       auto& inst = vec_insts[c_bin[i]];
       bin.setInst(inst);
       inst->setLoc(x * 8, y);
-    } else if(insts.find(bin.Inst()) != insts.end())
+    } else if (insts.find(bin.Inst()) != insts.end())
       bin.deleteInst();
   }
   cleanKM();
