@@ -68,6 +68,8 @@ void WriteGds(const string& filename) {
       << "STRNAME TOP" << endl;
   // Boundary
   drawBox(0, Col_cnt * 8, 0, Row_cnt * 8, 0, gds);
+  long long cost = getTotalCost();
+  writeText(0, Row_cnt * 8, "COST: " + to_string(cost), 10, gds);
   // cells
   for (auto& inst : CELLS) {
     if (inst->isMacro())
