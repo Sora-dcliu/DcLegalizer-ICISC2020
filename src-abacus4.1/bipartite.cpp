@@ -27,7 +27,7 @@ BGM::BGM() {
 
 void BGM::doBipartiteGraphMatch() {
   LOG << "Begin." << endl;
-  /* for (int x = 0; x <= this->max_x_; x++) {
+  for (int x = 0; x <= this->max_x_; x++) {
     for (int y = 0; y <= this->max_y_; y++) {
       set<shared_ptr<cell>> insts;
       this->dfs(x, y, insts);
@@ -45,10 +45,6 @@ void BGM::doBipartiteGraphMatch() {
         this->KM_match(lx, ly, ux, uy, insts);
       }
     }
-  } */
-  set<shared_ptr<cell>> insts;
-  for(auto& inst : CELLS) {
-    if(!inst->isMacro()) insts.insert(inst);
   }
 }
 
@@ -56,7 +52,7 @@ void BGM::doBipartiteGraphMatch() {
 void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
   auto& bin = Grid[x][y];
   if (bin.Inst() && !bin.visited()) {
-    if (bin.isStd()) insts.insert(bin.Inst());
+    if(bin.isStd())insts.insert(bin.Inst());
     bin.mark();
     if (x - 1 >= 0) dfs(x - 1, y, insts);
     if (x + 1 <= max_x_) dfs(x + 1, y, insts);

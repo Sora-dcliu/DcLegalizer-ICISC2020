@@ -9,7 +9,7 @@ debug:
 	$(CC) -g -c $(SRC) $(CFLAGS)
 	$(CC) -o $(TARGET) $(OBJ)
 release:
-	$(CC) -c $(SRC) $(CFLAGS)
+	$(CC) -c -O3 $(SRC) $(CFLAGS)
 	$(CC) -o $(TARGET) $(OBJ)
 	rm -fr *.o
 clean:
