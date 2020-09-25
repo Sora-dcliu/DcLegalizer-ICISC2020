@@ -1,13 +1,16 @@
 #ifndef _GLOBAL_
 #define _GLOBAL_
 
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <map>
+#include <memory>
 #include <string>
 #include <vector>
 
 #include "cell.h"
+#include "limits.h"
 
 // global variable
 extern int Row_cnt;   // number of Rows - M
