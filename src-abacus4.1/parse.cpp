@@ -65,7 +65,7 @@ void WriteGds(const string& filename) {
       << "LIBNAME LIB" << endl
       << "UNITS 1 1e-09" << endl
       << "BGNSTR" << endl
-      << "STRNAME TOP" << endl;
+      << "STRNAME SOLUTION" << endl;
   // Boundary
   drawBox(0, Col_cnt * 8, 0, Row_cnt * 8, 0, gds);
   long long cost = getTotalCost();
@@ -82,7 +82,7 @@ void WriteGds(const string& filename) {
         << "LAYER 3" << endl
         << "DATATYPE 0" << endl
         << "PATHTYPE 2" << endl
-        << "WIDTH 0.1" << endl
+        << "WIDTH 0" << endl
         << "XY " << inst->oldlx() << ": " << inst->oldly() << endl
         << inst->lx() << ": " << inst->ly() << endl
         << "PROPATTR 1" << endl

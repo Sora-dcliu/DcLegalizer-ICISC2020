@@ -18,7 +18,10 @@ class cell {
   inline int ly() { return ly_; };
   inline int uy() { return ly_ + height_; };
   inline int height() { return height_; };
-  inline bool isMacro() {return height_ > 1;};
+
+  inline int Key() { return 2 * old_ly_ + height_; };
+
+  inline bool isMacro() { return height_ > 1; };
 
   inline int idx() { return idx_; };
 
@@ -29,9 +32,7 @@ class cell {
   inline long long getCost(int lx, int ly) {
     return height_ * (pow(old_lx_ - lx, 2) + pow(old_ly_ - ly, 2));
   };
-  inline long long getCost() {
-    return height_ * (pow(old_lx_ - lx_, 2) + pow(old_ly_ - ly_, 2));
-  };
+  inline long long getCost() { return height_ * (pow(old_lx_ - lx_, 2) + pow(old_ly_ - ly_, 2)); };
 
  private:
   int idx_;

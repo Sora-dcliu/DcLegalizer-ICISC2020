@@ -51,8 +51,8 @@ void BGM::doBipartiteGraphMatch() {
 // Depth-first search clustering
 void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
   auto& bin = Grid[x][y];
-  if (bin.Inst() && !bin.visited()) {
-    if(bin.isStd())insts.insert(bin.Inst());
+  if (bin.isStd() && !bin.visited()) {
+    insts.insert(bin.Inst());
     bin.mark();
     if (x - 1 >= 0) dfs(x - 1, y, insts);
     if (x + 1 <= max_x_) dfs(x + 1, y, insts);
@@ -99,6 +99,8 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
       int y = ly + j % height;
       auto& bin = this->Grid[x][y];
       if (bin.isMacro() || insts.find(bin.Inst()) == insts.end()) {
+        edge[j] = LLONG_MAX;
+      } else if (abs(x * 8 - vec_insts[i]->oldlx()) > 16 || abs(y - vec_insts[i]->oldly()) > 16) {
         edge[j] = LLONG_MAX;
       } else {
         edge[j] = bin.getCost(vec_insts[i]);

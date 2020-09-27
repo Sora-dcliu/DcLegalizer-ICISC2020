@@ -162,7 +162,7 @@ void Legalize::reFind() {
     LOG << "Get better solution: " << bestCost << "->" << curCost << " improve: " << improve << "%"
         << endl;
     bestCost = curCost;
-    if (improve > 0.1) reFind();
+    if (improve > 0) reFind();
   }
 }
 
@@ -170,7 +170,7 @@ void Legalize::BipartiteGraphMatch() {
   LOG << "Bipartite graph match." << endl;
   BGM bgm;
   bgm.doBipartiteGraphMatch();
-  LOG<<" [BGM] Compelete."<<endl;
+  LOG << "[BGM] Compelete." << endl;
 }
 
 long long Col::InsertCol(shared_ptr<cell>& inst) {
@@ -312,7 +312,6 @@ void Cluster::addCell(shared_ptr<cell>& inst) {
 void Cluster::addCluster(Cluster& c) {
   this->Qc_ += c.Qc() - c.totalHeight() * this->totalHeight_;
   this->totalHeight_ += c.totalHeight();
-  // Default the lower one shelter upper one
   for (auto inst : c.cells()) {
     this->getInsertCost(inst, false);
   }
@@ -321,41 +320,19 @@ void Cluster::addCluster(Cluster& c) {
 
 long long Cluster::getInsertCost(shared_ptr<cell>& newInst, bool calcCost) {
   int num = this->cells_.size();
-  if (num == 1 && this->cells_[0] == newInst) {
-    return newInst->getCost(this->lx_, this->ly_);
-  }
-  int newLoc = num;
-  int curUy = this->uy();
+  if (num == 0) throw "Error - cluster cell cnt.";
+  if (num == 1 && this->cells_[0] == newInst) return newInst->getCost(this->lx_, this->ly_);
   for (int i = num - 1; i >= 0; i--) {
-    auto inst = this->cells_[i];
-    if (inst->oldly() > newInst->oldly() + newInst->height()) {
-      curUy -= inst->height();
-      newLoc = i;
-      continue;
-    }
-    if (inst->oldly() + inst->height() > newInst->oldly()) {
-      //[...,old,new] cost = old + new
-      long long cost1 =
-          inst->height() * pow(inst->oldly() - (curUy - newInst->height() - inst->height()), 2) +
-          newInst->height() * pow(newInst->oldly() - (curUy - newInst->height()), 2);
-      //[...,new,old]
-      long long cost2 = inst->height() * pow(inst->oldly() - (curUy - inst->height()), 2) +
-                        newInst->height() *
-                            pow(newInst->oldly() - (curUy - inst->height() - newInst->height()), 2);
-      if (cost1 > cost2) {
-        newLoc = i;
-        curUy -= inst->height();
-      } else
-        break;
-    } else
+    if (this->cells_[i]->Key() < newInst->Key()) {
+      this->cells_.insert(this->cells_.begin() + i + 1, newInst);
       break;
+    }
   }
-  this->cells_.insert(this->cells_.begin() + newLoc, newInst);
-  if (!calcCost) return 0;
+  if (this->cells_.size() == num) this->cells_.insert(this->cells_.begin(), newInst);
+
   long long cost = 0;
   int curLy = this->ly_;
-  for (int i = 0; i <= num; i++) {
-    auto& inst = this->cells_[i];
+  for (auto& inst : this->cells_) {
     if (inst == newInst) {
       cost += inst->getCost(this->lx_, curLy);
     } else {
