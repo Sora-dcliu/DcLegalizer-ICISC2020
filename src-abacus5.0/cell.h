@@ -8,36 +8,42 @@ using namespace std;
 class cell {
  public:
   cell(int idx, int height, int lx, int ly)
-      : idx_(idx), height_(height), old_lx_(lx), lx_(lx), old_ly_(ly), ly_(ly){};
+      : idx_(idx),
+        height_(height),
+        old_lx_(lx),
+        lx_(lx),
+        old_ly_(ly),
+        ly_(ly),
+        buff_lx_(lx),
+        buff_ly_(ly){};
 
-  inline int oldlx() { return old_lx_; };
-  inline int oldly() { return old_ly_; };
+  int oldlx();
+  int oldly();
 
-  inline int lx() { return lx_; };
-  inline int ux() { return lx_ + 8; };
-  inline int ly() { return ly_; };
-  inline int uy() { return ly_ + height_; };
-  inline int height() { return height_; };
+  int lx();
+  int ux();
+  int ly();
+  int uy();
+  int height();
 
-  inline int Key() { return 2 * old_ly_ + height_; };
+  int Key();
 
-  inline bool isMacro() { return height_ > 1; };
+  bool isMacro();
 
-  inline int idx() { return idx_; };
+  int idx();
 
-  inline void setLoc(int lx, int ly) {
-    lx_ = lx;
-    ly_ = ly;
-  };
-  inline long long getCost(int lx, int ly) {
-    return height_ * (pow(old_lx_ - lx, 2) + pow(old_ly_ - ly, 2));
-  };
-  inline long long getCost() { return height_ * (pow(old_lx_ - lx_, 2) + pow(old_ly_ - ly_, 2)); };
+  void setLoc(int lx, int ly);
+
+  void clearBuffer(bool saveBuff);
+
+  long long getCost(int lx, int ly);
+  long long getCost();
 
  private:
   int idx_;
   int old_lx_, old_ly_;
   int lx_, ly_;
+  int buff_lx_, buff_ly_;
   int height_;
 };
 

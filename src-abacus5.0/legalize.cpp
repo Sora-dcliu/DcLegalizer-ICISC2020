@@ -8,6 +8,9 @@
 #define LOG cout << "[LG] "
 #define CP LOG << "[PLACE] "
 
+unordered_set<shared_ptr<cell>> buffCells;  // Record the cells that use buffer
+unordered_map<int, Col> buffColsBackup;     // Back up the columns changed in buffer mode
+
 Legalize::Legalize() {
   this->bestCost = LLONG_MAX;
 
@@ -30,61 +33,64 @@ Legalize::Legalize() {
 void Legalize::doLegalize() {
   LOG << "Legalization begin." << endl;
   LOG << "Columns place." << endl;
-  this->ColPlace();
-  this->bestCost = getTotalCost();
-  LOG << "Total cost: " << this->bestCost << endl;
-  this->reFind();
-  this->BipartiteGraphMatch();
-}
-
-void Legalize::ColPlace() {
-  CP << "Col place." << endl;
   for (auto& inst : sortedCells_) {
-    int idx = inst->idx();
-    long long bestCost = LLONG_MAX;  // Minimum cost
-    Col bestCol;                     // Save results with minimal cost
-    int nearestCol_idx =
-        round(1.0 * inst->oldlx() / 8);  // The index of column closest to the starting point
-    nearestCol_idx = min(nearestCol_idx, Col_cnt - 1);
-    nearestCol_idx = max(0, nearestCol_idx);
-
-    bool left = true, right = true;        // Whether to explore in that direction
-    for (int i = 0; left || right; i++) {  // i - Depth of exploration
-      // left
-      if (nearestCol_idx - i >= 0 && left) {
-        auto curCol = COLS_[nearestCol_idx - i];
-        long long curCost = curCol.InsertCol(inst);  // Insert the cell and return the cost
-        if (curCost < bestCost) {
-          bestCost = curCost;
-          bestCol = curCol;
-        }
-        // When cost increase, stop the search in the direction
-        else if (curCost > bestCost)
-          left = false;
-      } else if (nearestCol_idx - i < 0)
-        left = false;
-      // right
-      if (nearestCol_idx + i < Col_cnt && right && i != 0) {
-        auto curCol = COLS_[nearestCol_idx + i];
-        long long curCost = curCol.InsertCol(inst);
-        if (curCost < bestCost) {
-          bestCost = curCost;
-          bestCol = curCol;
-        } else if (curCost > bestCost)
-          right = false;
-      } else if (nearestCol_idx + i >= Col_cnt)
-        right = false;
-    }
-    // Determine the optimal column, and the location of its cells
-    int bestCol_idx = bestCol.idx();
-    this->COLS_[bestCol_idx] = bestCol;
-    this->COLS_[bestCol_idx].determindLoc();
+    this->ColPlace(inst);
   }
   // initial the set for refind.
   this->last_changedCols_.clear();
   for (int i = 0; i < Col_cnt; i++) {
     this->last_changedCols_.insert(i);
   }
+  this->bestCost = getTotalCost();
+  LOG << "Total cost: " << this->bestCost << endl;
+  // Temporarily place the placement in the buffer, not to overwrite the previous solution
+  bufferMod = true;
+  this->reFind();
+  bufferMod = false;
+  this->BipartiteGraphMatch();
+}
+
+long long Legalize::ColPlace(shared_ptr<cell>& inst) {
+  long long bestCost = LLONG_MAX;  // Minimum cost
+  Col bestCol;                     // Save results with minimal cost
+  int nearestCol_idx =
+      round(1.0 * inst->oldlx() / 8);  // The index of column closest to the starting point
+  nearestCol_idx = min(nearestCol_idx, Col_cnt - 1);
+  nearestCol_idx = max(0, nearestCol_idx);
+
+  bool left = true, right = true;        // Whether to explore in that direction
+  for (int i = 0; left || right; i++) {  // i - Depth of exploration
+    // left
+    if (nearestCol_idx - i >= 0 && left) {
+      auto curCol = COLS_[nearestCol_idx - i];
+      long long curCost = curCol.InsertCol(inst);  // Insert the cell and return the cost
+      if (curCost < bestCost) {
+        bestCost = curCost;
+        bestCol = curCol;
+      }
+      // When cost increase, stop the search in the direction
+      else if (curCost > bestCost)
+        left = false;
+    } else if (nearestCol_idx - i < 0)
+      left = false;
+    // right
+    if (nearestCol_idx + i < Col_cnt && right && i != 0) {
+      auto curCol = COLS_[nearestCol_idx + i];
+      long long curCost = curCol.InsertCol(inst);
+      if (curCost < bestCost) {
+        bestCost = curCost;
+        bestCol = curCol;
+      } else if (curCost > bestCost)
+        right = false;
+    } else if (nearestCol_idx + i >= Col_cnt)
+      right = false;
+  }
+  // Determine the optimal column, and the location of its cells
+  int bestCol_idx = bestCol.idx();
+  if (bufferMod) buffColsBackup.insert(make_pair(bestCol_idx, this->COLS_[bestCol_idx]));
+  this->COLS_[bestCol_idx] = bestCol;
+  this->COLS_[bestCol_idx].determindLoc();
+  return bestCost;
 }
 
 void Legalize::reFind() {
@@ -103,7 +109,8 @@ void Legalize::reFind() {
     nearestCol_idx = min(nearestCol_idx, Col_cnt - 1);
     nearestCol_idx = max(0, nearestCol_idx);
     Col originCol(this->COLS_[inst->lx() / 8]);
-    Col bestCol(originCol);
+    
+    int bestCol_idx = inst->lx() / 8;
     // The added cost of movement must not be greater than the reduced cost of origin col
     long long bestCost = -originCol.DeleteInst(inst);
     bool left = true, right = true;
@@ -120,11 +127,13 @@ void Legalize::reFind() {
           (changed ||
            this->last_changedCols_.find(nearestCol_idx - i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol_idx - i];
-        long long curCost = curCol.InsertCol(inst) - inst->getCost();
+        long long curCost = this->forceInsert(inst, curCol);
         if (curCost < bestCost) {
           bestCost = curCost;
-          bestCol = curCol;
-        }
+          bestCol_idx = nearestCol_idx - i;
+          this->clearBuffer(true);
+        } else
+          this->clearBuffer(false);
       } else if (nearestCol_idx - i < 0)
         left = false;
 
@@ -134,24 +143,17 @@ void Legalize::reFind() {
           (changed ||
            this->last_changedCols_.find(nearestCol_idx + i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol_idx + i];
-        long long curCost = curCol.InsertCol(inst) - inst->getCost();
+        long long curCost = this->forceInsert(inst, curCol);
         if (curCost < bestCost) {
           bestCost = curCost;
-          bestCol = curCol;
-        }
+          bestCol_idx = nearestCol_idx + i;
+          this->clearBuffer(true);
+        } else
+          this->clearBuffer(false);
       } else if (nearestCol_idx + i >= Col_cnt)
         right = false;
     }
-    if (bestCol.idx() == inst->lx() / 8) continue;
-    COLS_[bestCol.idx()] = bestCol;
-    COLS_[originCol.idx()] = originCol;
-    this->cur_changedCols.insert(bestCol.idx());
-    this->cur_changedCols.insert(originCol.idx());
-    this->last_changedCols_.insert(bestCol.idx());
-    this->last_changedCols_.insert(originCol.idx());
-    // set final position
-    bestCol.determindLoc();
-    originCol.determindLoc();
+    if (bestCol_idx == inst->lx() / 8) continue;
   }
   this->last_changedCols_.swap(this->cur_changedCols);
   this->cur_changedCols.clear();
@@ -164,6 +166,44 @@ void Legalize::reFind() {
     bestCost = curCost;
     if (improve > 0) reFind();
   }
+}
+
+long long Legalize::forceInsert(shared_ptr<cell>& inst, Col& curCol) {
+  // Check cells fully overlaped by the inserter
+  vector<shared_ptr<cell>> instsToMove;
+  auto& Clusters = curCol.Clusters();
+  for (auto iter = Clusters.begin(); iter != Clusters.end();) {
+    auto& c = *iter;
+    if (c.ly() < inst->oldly() + inst->height() && c.uy() > inst->oldly()) {
+      // overlap
+      // Find the cells that are completely overlapped
+      auto cells = c.cells();
+      for (auto& c_inst : cells) {
+        if (c_inst->ly() >= inst->oldly() && c_inst->uy() <= inst->oldly() + inst->height()) {
+          instsToMove.push_back(c_inst);
+          c.deleteCell(c_inst);
+        }
+      }
+    }
+    if (c.cells().empty())
+      iter = Clusters.erase(iter);
+    else
+      iter++;
+  }
+  long long insertCost = curCol.InsertCol(inst);
+  // rePlace insts overlapped
+  for (auto& inst_o : instsToMove) {
+    insertCost += this->ColPlace(inst_o);
+  }
+  return insertCost;
+}
+
+void Legalize::clearBuffer(bool saveBuff) {
+  for (auto& inst : buffCells) inst->clearBuffer(saveBuff);
+  if (saveBuff)
+    for (auto& col : buffColsBackup) this->COLS_[col.first] = col.second;
+  buffCells.clear();
+  buffColsBackup.clear();
 }
 
 void Legalize::BipartiteGraphMatch() {
@@ -309,6 +349,12 @@ void Cluster::addCell(shared_ptr<cell>& inst) {
   this->changed = true;
 }
 
+void Cluster::deleteCell(shared_ptr<cell>& inst) {
+  this->cells_.erase(find(this->cells_.begin(), this->cells_.end(), inst));
+  this->totalHeight_ -= inst->height();
+  this->Qc_ -= inst->height() * (inst->oldly() - this->totalHeight_);
+}
+
 void Cluster::addCluster(Cluster& c) {
   this->Qc_ += c.Qc() - c.totalHeight() * this->totalHeight_;
   this->totalHeight_ += c.totalHeight();
@@ -349,6 +395,7 @@ void Cluster::setLocations() {
   for (auto& inst : this->cells_) {
     inst->setLoc(this->lx_, curLy);
     curLy += inst->height();
+    if (bufferMod) buffCells.insert(inst);
   }
   this->changed = false;
 }

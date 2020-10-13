@@ -3,6 +3,7 @@
 
 #include <map>
 #include <unordered_set>
+#include <unordered_map>
 #include <vector>
 
 #include "global.h"
@@ -24,6 +25,8 @@ class Cluster {
 
   inline void addCell(shared_ptr<cell>& inst);
   inline void addCluster(Cluster& c);
+
+  inline void deleteCell(shared_ptr<cell>& inst);
 
   inline bool isOverlap(shared_ptr<cell>& inst) {
     if (ly_ < inst->oldly() + inst->height() && uy() > inst->oldly())
@@ -62,7 +65,7 @@ class Col {
   Col(){};
   Col(int idx) : idx_(idx){};
 
-  inline int idx() { return idx_; };
+  inline int idx() const { return idx_; };
   inline vector<Cluster>& Clusters() { return Clusters_; };
 
   long long InsertCol(shared_ptr<cell>& inst);  // Insert the cell and calculate the cost
@@ -87,9 +90,11 @@ class Legalize {
   Legalize();
 
   void doLegalize();
-  void ColPlace();
+  long long ColPlace(shared_ptr<cell>& inst);
 
   void reFind();
+  long long forceInsert(shared_ptr<cell>& inst, Col& curCol);
+  void clearBuffer(bool saveBuff);
   void BipartiteGraphMatch();
 
  private:

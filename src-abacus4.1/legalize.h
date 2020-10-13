@@ -26,10 +26,15 @@ class Cluster {
   inline void addCluster(Cluster& c);
 
   inline bool isOverlap(shared_ptr<cell>& inst) {
-    if (ly_ < inst->oldly() + inst->height() && uy() > inst->oldly())
-      return true;
+    bool overlap = false;
+    if (inst->oldly() < 0 || inst->oldly() + inst->height() > Row_cnt * 8) {
+      if (ly_ < inst->uy() && uy() > inst->ly()) overlap = true;
+    } else if (ly_ < inst->oldly() + inst->height() && uy() > inst->oldly())
+      overlap = true;
     else
-      return false;
+      overlap = false;
+
+    return overlap;
   };
 
   inline bool isOverlap(Cluster& c) {

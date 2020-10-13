@@ -1,6 +1,6 @@
 CC=g++
 TARGET=main
-SRC=$(shell echo *.cpp)
+SRC=main.cpp cell.cpp parse.cpp legalize.cpp bipartite.cpp
 OBJ=$(SRC:$.cpp=$.o)
 CFLAGS= -std=c++11 -stdlib=libc++
 .PHONY:clean
