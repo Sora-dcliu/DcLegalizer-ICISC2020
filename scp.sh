@@ -5,7 +5,7 @@ do
 	fs="$fs $f"
 done 
 	expect -c "
-	spawn scp $fs eda20819@10.100.2.15:~/dcleg
+	spawn scp $fs eda20819@10.100.2.15:~/src
 	expect {
 	    \"*assword\" 
 	                {
