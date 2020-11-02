@@ -1,9 +1,5 @@
-#include <chrono>
-
 #include "global.h"
 #include "legalize.h"
-
-using namespace chrono;
 
 #define LOG cout << "[INFO] "
 // Variable initialization
@@ -11,9 +7,11 @@ int Row_cnt;
 int Col_cnt;
 int Cell_cnt;
 vector<shared_ptr<cell>> CELLS;
+// start time
+std::chrono::system_clock::time_point start;
 
 int main(int argc, char* argv[]) {
-  auto start = system_clock::now();
+  start = system_clock::now();
   try {
     if (argc != 3) throw "Eror - wrong number of command-line arguments.";
     string inputFile = argv[1];
@@ -27,7 +25,7 @@ int main(int argc, char* argv[]) {
 
     // dump output file
     Output(outputFile);
-    WriteGds(outputFile+".gds");
+    WriteGds(outputFile + ".gds");
     auto end = system_clock::now();
     auto duration = duration_cast<microseconds>(end - start);
     LOG << "Run time: " << double(duration.count()) / microseconds::period::den << "(s)." << endl;

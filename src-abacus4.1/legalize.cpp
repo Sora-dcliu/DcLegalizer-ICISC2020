@@ -31,39 +31,6 @@ void Legalize::doLegalize() {
   LOG << "Legalization begin." << endl;
   LOG << "Columns place." << endl;
   this->ColPlace();
-  if (!checkLegal()) {
-    LOG << "Re-Initialize." << endl;
-    for (int i = 0; i < Col_cnt; i++) {
-      this->COLS_.push_back(Col(i));
-    }
-    // Macro first
-    this->sortedCells_.clear();
-    for (auto& inst : CELLS) {
-      if (inst->isMacro()) this->sortedCells_.push_back(inst);
-    }
-    sort(this->sortedCells_.begin(), this->sortedCells_.end(),
-         [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
-           if (inst1->oldly() == inst2->oldly()) {
-             return inst1->height() > inst2->height();
-           } else
-             return inst1->oldly() < inst2->oldly();
-         });
-    LOG << "Re-Place Macro" << endl;
-    this->ColPlace();
-    this->sortedCells_.clear();
-    for (auto& inst : CELLS) {
-      if (!inst->isMacro()) this->sortedCells_.push_back(inst);
-    }
-    sort(this->sortedCells_.begin(), this->sortedCells_.end(),
-         [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
-           if (inst1->oldly() == inst2->oldly()) {
-             return inst1->height() > inst2->height();
-           } else
-             return inst1->oldly() < inst2->oldly();
-         });
-    LOG << "Re-Place STD" << endl;
-    this->ColPlace();
-  }
   // initial the set for refind.
   this->last_changedCols_.clear();
   for (int i = 0; i < Col_cnt; i++) {
@@ -71,7 +38,7 @@ void Legalize::doLegalize() {
   }
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
-  WriteGds("orig.gds");
+  // WriteGds("orig.gds");
   this->reFind();
   this->BipartiteGraphMatch();
 }
@@ -195,13 +162,18 @@ void Legalize::reFind() {
     LOG << "Get better solution: " << bestCost << "->" << curCost << " improve: " << improve << "%"
         << endl;
     bestCost = curCost;
-    if (improve > 1) reFind();
+
+    auto now = system_clock::now();
+    auto duration = duration_cast<microseconds>(now - start);
+    auto runtime = double(duration.count()) / microseconds::period::den;  // unit - s
+    if (runtime > 5 * 60) return;
+    if (improve > 0.1) reFind();
   }
 }
 
 void Legalize::BipartiteGraphMatch() {
   LOG << "Bipartite graph match." << endl;
-  WriteGds("ReFind.gds");
+  // WriteGds("ReFind.gds");
   BGM bgm;
   bgm.doBipartiteGraphMatch();
   LOG << "[BGM] Compelete." << endl;
@@ -243,7 +215,7 @@ long long Col::DeleteInst(shared_ptr<cell>& inst) {
     this->insert_newCluster(sc);
   }
   if (cost > 0) {
-    WriteGds("error.gds");
+    // WriteGds("error.gds");
     throw "Erro - positive pop cost.";
   } else
     return cost;

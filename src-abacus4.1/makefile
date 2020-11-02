@@ -1,8 +1,8 @@
 CC=g++
-TARGET=main
+TARGET=eda20819.exe
 SRC=$(shell echo *.cpp)
 OBJ=$(SRC:$.cpp=$.o)
-CFLAGS= -std=c++11 -stdlib=libc++
+CFLAGS= -std=c++11
 .PHONY:clean
 
 debug:
