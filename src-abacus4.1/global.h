@@ -24,6 +24,6 @@ void getInput(const string& inputFile);
 void Output(const string& outputFile);
 void WriteGds(const string& filename);
 long long getTotalCost();
-void checkLegal();
+bool checkLegal();
 
 #endif

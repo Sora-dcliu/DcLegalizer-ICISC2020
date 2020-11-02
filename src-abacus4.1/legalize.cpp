@@ -31,6 +31,44 @@ void Legalize::doLegalize() {
   LOG << "Legalization begin." << endl;
   LOG << "Columns place." << endl;
   this->ColPlace();
+  if (!checkLegal()) {
+    LOG << "Re-Initialize." << endl;
+    for (int i = 0; i < Col_cnt; i++) {
+      this->COLS_.push_back(Col(i));
+    }
+    // Macro first
+    this->sortedCells_.clear();
+    for (auto& inst : CELLS) {
+      if (inst->isMacro()) this->sortedCells_.push_back(inst);
+    }
+    sort(this->sortedCells_.begin(), this->sortedCells_.end(),
+         [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
+           if (inst1->oldly() == inst2->oldly()) {
+             return inst1->height() > inst2->height();
+           } else
+             return inst1->oldly() < inst2->oldly();
+         });
+    LOG << "Re-Place Macro" << endl;
+    this->ColPlace();
+    this->sortedCells_.clear();
+    for (auto& inst : CELLS) {
+      if (!inst->isMacro()) this->sortedCells_.push_back(inst);
+    }
+    sort(this->sortedCells_.begin(), this->sortedCells_.end(),
+         [](shared_ptr<cell> inst1, shared_ptr<cell> inst2) {
+           if (inst1->oldly() == inst2->oldly()) {
+             return inst1->height() > inst2->height();
+           } else
+             return inst1->oldly() < inst2->oldly();
+         });
+    LOG << "Re-Place STD" << endl;
+    this->ColPlace();
+  }
+  // initial the set for refind.
+  this->last_changedCols_.clear();
+  for (int i = 0; i < Col_cnt; i++) {
+    this->last_changedCols_.insert(i);
+  }
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
   WriteGds("orig.gds");
@@ -41,7 +79,6 @@ void Legalize::doLegalize() {
 void Legalize::ColPlace() {
   CP << "Col place." << endl;
   for (auto& inst : sortedCells_) {
-    int idx = inst->idx();
     long long bestCost = LLONG_MAX;  // Minimum cost
     Col bestCol;                     // Save results with minimal cost
     int nearestCol_idx =
@@ -80,11 +117,6 @@ void Legalize::ColPlace() {
     int bestCol_idx = bestCol.idx();
     this->COLS_[bestCol_idx] = bestCol;
     this->COLS_[bestCol_idx].determindLoc();
-  }
-  // initial the set for refind.
-  this->last_changedCols_.clear();
-  for (int i = 0; i < Col_cnt; i++) {
-    this->last_changedCols_.insert(i);
   }
 }
 
@@ -169,6 +201,7 @@ void Legalize::reFind() {
 
 void Legalize::BipartiteGraphMatch() {
   LOG << "Bipartite graph match." << endl;
+  WriteGds("ReFind.gds");
   BGM bgm;
   bgm.doBipartiteGraphMatch();
   LOG << "[BGM] Compelete." << endl;
@@ -188,6 +221,7 @@ long long Col::InsertCol(shared_ptr<cell>& inst) {
     this->Clusters_[c_idx].addCell(inst);
     c_idx = this->collapse(c_idx);
   }
+  if (this->Clusters_[c_idx].totalHeight() > Row_cnt * 8) return LLONG_MAX;
   return this->Clusters_[c_idx].getInsertCost(inst, true);
 }
 
@@ -296,7 +330,7 @@ void Col::determindLoc() {
 }
 
 Cluster::Cluster(shared_ptr<cell>& inst, int lx) {
-  this->cells_.push_back(inst);
+  // this->cells_.push_back(inst);
   this->lx_ = lx;
   this->ly_ = inst->oldly();
   this->Qc_ = inst->height() * (inst->oldly());
@@ -322,8 +356,8 @@ void Cluster::addCluster(Cluster& c) {
 
 long long Cluster::getInsertCost(shared_ptr<cell>& newInst, bool calcCost) {
   int num = this->cells_.size();
-  if (num == 0) throw "Error - cluster cell cnt.";
-  if (num == 1 && this->cells_[0] == newInst) return newInst->getCost(this->lx_, this->ly_);
+  // if (num == 0) throw "Error - cluster cell cnt.";
+  // if (num == 1 && this->cells_[0] == newInst) return newInst->getCost(this->lx_, this->ly_);
   for (int i = num - 1; i >= 0; i--) {
     if (this->cells_[i]->Key() < newInst->Key()) {
       this->cells_.insert(this->cells_.begin() + i + 1, newInst);
@@ -373,7 +407,7 @@ long long getTotalCost() {
   return cost;
 }
 
-void checkLegal() {
+bool checkLegal() {
   cout << "[EVL] Check legality." << endl;
   vector<vector<shared_ptr<cell>>> grid(Col_cnt, vector<shared_ptr<cell>>(Row_cnt * 8));
   for (auto& inst : CELLS) {
@@ -381,7 +415,8 @@ void checkLegal() {
       throw "Error - Illegal lx.";
     else if (inst->lx() < 0 || inst->ux() > Col_cnt * 8 || inst->ly() < 0 ||
              inst->uy() > Row_cnt * 8) {
-      throw "Error - beyond the border.";
+      LOG << "Error - beyond the border." << endl;
+      return false;
     } else {
       for (int i = inst->ly(); i < inst->uy(); i++) {
         if (grid[inst->lx() / 8][i]) {
@@ -392,4 +427,5 @@ void checkLegal() {
     }
   }
   cout << "[EVL] Legal!" << endl;
+  return true;
 }

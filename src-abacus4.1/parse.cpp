@@ -58,7 +58,7 @@ void writeText(int x, int y, const string& str, float size, ofstream& gds) {
 }
 
 void WriteGds(const string& filename) {
-  LOG << "Writting gds file." << endl;
+  LOG << "Writting gds file - " << filename << endl;
   ofstream gds(filename);
   gds << "HEADER 600" << endl
       << "BGNLIB" << endl
@@ -69,7 +69,7 @@ void WriteGds(const string& filename) {
   // Boundary
   drawBox(0, Col_cnt * 8, 0, Row_cnt * 8, 0, gds);
   long long cost = getTotalCost();
-  writeText(0, Row_cnt * 8, "COST: " + to_string(cost), 10, gds);
+  writeText(0, Row_cnt * 8 + 50, "COST: " + to_string(cost), 20, gds);
   // cells
   for (auto& inst : CELLS) {
     if (inst->isMacro())

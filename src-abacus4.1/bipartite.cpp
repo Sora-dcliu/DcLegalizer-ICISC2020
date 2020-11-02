@@ -100,8 +100,6 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
       auto& bin = this->Grid[x][y];
       if (bin.isMacro() || insts.find(bin.Inst()) == insts.end()) {
         edge[j] = LLONG_MAX;
-      } else if (abs(x * 8 - vec_insts[i]->oldlx()) > 16 || abs(y - vec_insts[i]->oldly()) > 16) {
-        edge[j] = LLONG_MAX;
       } else {
         edge[j] = bin.getCost(vec_insts[i]);
         w_inst[i] = min(w_inst[i], edge[j]);
