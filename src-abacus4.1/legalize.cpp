@@ -195,7 +195,7 @@ void Legalize::reFind() {
     LOG << "Get better solution: " << bestCost << "->" << curCost << " improve: " << improve << "%"
         << endl;
     bestCost = curCost;
-    if (improve > 0.1) reFind();
+    if (improve > 1) reFind();
   }
 }
 

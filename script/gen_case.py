@@ -1,6 +1,6 @@
 import random
 
-num = 15000
+num = 20000
 macro_num =  int(num/18)
 filename = '../testcase/' + str(num) + '.in'
 
