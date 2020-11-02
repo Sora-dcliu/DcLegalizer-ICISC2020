@@ -33,6 +33,7 @@ void Legalize::doLegalize() {
   this->ColPlace();
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
+  WriteGds("orig.gds");
   this->reFind();
   this->BipartiteGraphMatch();
 }
@@ -207,9 +208,10 @@ long long Col::DeleteInst(shared_ptr<cell>& inst) {
     }
     this->insert_newCluster(sc);
   }
-  if (cost > 0)
+  if (cost > 0) {
+    WriteGds("error.gds");
     throw "Erro - positive pop cost.";
-  else
+  } else
     return cost;
 
   throw "Eror - inst not found.";
@@ -230,7 +232,7 @@ int Col::OverlapCluster(shared_ptr<cell>& inst) {
       int mid = (ll + hh) / 2;
       if (this->Clusters_[mid].isOverlap(inst))
         return mid;
-      else if (this->Clusters_[mid].ly() < inst->ly())
+      else if (this->Clusters_[mid].ly() < inst->oldly())
         ll = mid + 1;
       else
         hh = mid - 1;
