@@ -13,4 +13,4 @@ all:
 	rm -fr *.o
 clean:
 	rm -fr *.o
-	rm TARGETDIR
+	rm $(TARGETDIR)

@@ -232,11 +232,11 @@ long long Col::DeleteInst(shared_ptr<cell> &inst) {
   }
   if (cost > 0) {
     // WriteGds("error.gds");
-    throw "Erro - positive pop cost.";
+    // throw "Erro - positive pop cost.";
   } else
     return cost;
 
-  throw "Eror - inst not found.";
+  //throw "Eror - inst not found.";
   return 0;
 }
 
