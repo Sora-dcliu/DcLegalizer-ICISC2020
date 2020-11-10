@@ -154,6 +154,7 @@ void Legalize::reFind() {
     originCol.determindLoc();
   }
   this->last_changedCols_.swap(this->cur_changedCols);
+  LOG << "Changed Cols-num: " << this->last_changedCols_.size() << endl;
   this->cur_changedCols.clear();
 
   long long curCost = getTotalCost();
@@ -167,7 +168,7 @@ void Legalize::reFind() {
     auto duration = duration_cast<microseconds>(now - start);
     auto runtime = double(duration.count()) / microseconds::period::den;  // unit - s
     if (runtime > 5 * 60) return;
-    if (improve > 0.1) reFind();
+    if (improve > 1) reFind();
   }
 }
 
