@@ -106,6 +106,7 @@ void Legalize::reFind() {
     Col bestCol(originCol);
     // The added cost of movement must not be greater than the reduced cost of origin col
     long long bestCost = -originCol.DeleteInst(inst);
+    Col bestOrig(originCol);
     bool left = true, right = true;
     bool changed = false;  // wether the current column has been changed
     if (this->last_changedCols_.find(inst->lx() / 8) != this->last_changedCols_.end())
@@ -120,11 +121,45 @@ void Legalize::reFind() {
           (changed ||
            this->last_changedCols_.find(nearestCol_idx - i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol_idx - i];
+        // insert
         long long curCost = curCol.InsertCol(inst) - inst->getCost();
         if (curCost < bestCost) {
           bestCost = curCost;
           bestCol = curCol;
+          bestOrig = originCol;
         }
+
+        // exchange
+        curCol = COLS_[nearestCol_idx - i];
+        int idx = curCol.OverlapCluster(inst);
+        auto& clusters = curCol.Clusters();
+        vector<shared_ptr<cell>> exInsts;
+        if (idx != -1) {
+          for (auto ex_inst : clusters[idx].cells()) {
+            if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
+                 ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
+                (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
+              if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
+                   inst->oldlx() > inst->lx()) ||
+                  (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
+                   inst->oldlx() < inst->lx()))
+                continue;
+              exInsts.push_back(ex_inst);
+            }
+          }
+          for (auto& ex_inst : exInsts) {
+            auto orig = originCol;
+            long long ex_cost = curCol.DeleteInst(ex_inst) + orig.InsertCol(ex_inst) +
+                                curCol.InsertCol(inst) - inst->getCost() - ex_inst->getCost();
+            if (ex_cost < bestCost) {
+              bestCost = ex_cost;
+              bestCol = curCol;
+              bestOrig = orig;
+            }
+            curCol = COLS_[nearestCol_idx - i];
+          }
+        }
+
       } else if (nearestCol_idx - i < 0)
         left = false;
 
@@ -138,20 +173,52 @@ void Legalize::reFind() {
         if (curCost < bestCost) {
           bestCost = curCost;
           bestCol = curCol;
+          bestOrig = originCol;
+        }
+
+        // exchange
+        curCol = COLS_[nearestCol_idx + i];
+        int idx = curCol.OverlapCluster(inst);
+        auto& clusters = curCol.Clusters();
+        vector<shared_ptr<cell>> exInsts;
+        if (idx != -1) {
+          for (auto ex_inst : clusters[idx].cells()) {
+            if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
+                 ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
+                (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
+              if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
+                   inst->oldlx() > inst->lx()) ||
+                  (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
+                   inst->oldlx() < inst->lx()))
+                continue;
+              exInsts.push_back(ex_inst);
+            }
+          }
+          for (auto& ex_inst : exInsts) {
+            auto orig = originCol;
+            long long ex_cost = curCol.DeleteInst(ex_inst) + orig.InsertCol(ex_inst) +
+                                curCol.InsertCol(inst) - inst->getCost() - ex_inst->getCost();
+            if (ex_cost < bestCost) {
+              bestCost = ex_cost;
+              bestCol = curCol;
+              bestOrig = orig;
+            }
+            curCol = COLS_[nearestCol_idx + i];
+          }
         }
       } else if (nearestCol_idx + i >= Col_cnt)
         right = false;
     }
     if (bestCol.idx() == inst->lx() / 8) continue;
     COLS_[bestCol.idx()] = bestCol;
-    COLS_[originCol.idx()] = originCol;
+    COLS_[originCol.idx()] = bestOrig;
     this->cur_changedCols.insert(bestCol.idx());
     this->cur_changedCols.insert(originCol.idx());
     this->last_changedCols_.insert(bestCol.idx());
     this->last_changedCols_.insert(originCol.idx());
     // set final position
     bestCol.determindLoc();
-    originCol.determindLoc();
+    bestOrig.determindLoc();
   }
   this->last_changedCols_.swap(this->cur_changedCols);
   LOG << "Changed Cols-num: " << this->last_changedCols_.size() << endl;
@@ -163,7 +230,6 @@ void Legalize::reFind() {
     LOG << "Get better solution: " << bestCost << "->" << curCost << " improve: " << improve << "%"
         << endl;
     bestCost = curCost;
-
     auto now = system_clock::now();
     auto duration = duration_cast<microseconds>(now - start);
     auto runtime = double(duration.count()) / microseconds::period::den;  // unit - s
@@ -209,8 +275,10 @@ long long Col::DeleteInst(shared_ptr<cell>& inst) {
   for (auto& sc : subCol.Clusters()) {
     int curLy = sc.ly();
     for (auto& subinst : sc.cells()) {
-      if (subinst->ly() != curLy)
+      if (subinst->ly() != curLy) {
         cost += subinst->getCost(subinst->lx(), curLy) - subinst->getCost();
+        subinst->setbuffLy(curLy);
+      }
       curLy += subinst->height();
     }
     this->insert_newCluster(sc);
@@ -345,7 +413,10 @@ long long Cluster::getInsertCost(shared_ptr<cell>& newInst, bool calcCost) {
     if (inst == newInst) {
       cost += inst->getCost(this->lx_, curLy);
     } else {
-      cost += inst->getCost(inst->lx(), curLy) - inst->getCost();
+      if (inst->buff_ly() == -1)
+        cost += inst->getCost(inst->lx(), curLy) - inst->getCost();
+      else
+        cost += inst->getCost(inst->lx(), curLy) - inst->getCost(inst->lx(), inst->buff_ly());
     }
     curLy += inst->height();
   }
@@ -357,6 +428,7 @@ void Cluster::setLocations() {
   int curLy = this->ly_;
   for (auto& inst : this->cells_) {
     inst->setLoc(this->lx_, curLy);
+    inst->setbuffLy(-1);
     curLy += inst->height();
   }
   this->changed = false;

@@ -8,7 +8,7 @@ using namespace std;
 class cell {
  public:
   cell(int idx, int height, int lx, int ly)
-      : idx_(idx), height_(height), old_lx_(lx), lx_(lx), old_ly_(ly), ly_(ly){};
+      : idx_(idx), height_(height), old_lx_(lx), lx_(lx), old_ly_(ly), ly_(ly), buff_ly_(-1){};
 
   inline int oldlx() { return old_lx_; };
   inline int oldly() { return old_ly_; };
@@ -29,6 +29,8 @@ class cell {
     lx_ = lx;
     ly_ = ly;
   };
+  inline int buff_ly() { return buff_ly_; };
+  inline void setbuffLy(int ly) { buff_ly_ = ly; };
   inline long long getCost(int lx, int ly) {
     return height_ * (pow(old_lx_ - lx, 2) + pow(old_ly_ - ly, 2));
   };
@@ -38,6 +40,7 @@ class cell {
   int idx_;
   int old_lx_, old_ly_;
   int lx_, ly_;
+  int buff_ly_;
   int height_;
 };
 
