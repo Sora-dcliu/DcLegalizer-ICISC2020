@@ -105,7 +105,7 @@ void Legalize::reFind() {
     Col originCol(this->COLS_[inst->lx() / 8]);
     Col bestCol(originCol);
     // The added cost of movement must not be greater than the reduced cost of origin col
-    long long bestCost = -originCol.DeleteInst(inst);
+    long long bestCost = -originCol.DeleteInst(inst, 1);
     Col bestOrig(originCol);
     bool left = true, right = true;
     bool changed = false;  // wether the current column has been changed
@@ -130,35 +130,8 @@ void Legalize::reFind() {
         }
 
         // exchange
-        curCol = COLS_[nearestCol_idx - i];
-        int idx = curCol.OverlapCluster(inst);
-        auto& clusters = curCol.Clusters();
-        vector<shared_ptr<cell>> exInsts;
-        if (idx != -1) {
-          for (auto ex_inst : clusters[idx].cells()) {
-            if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
-                 ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
-                (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
-              if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
-                   inst->oldlx() > inst->lx()) ||
-                  (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
-                   inst->oldlx() < inst->lx()))
-                continue;
-              exInsts.push_back(ex_inst);
-            }
-          }
-          for (auto& ex_inst : exInsts) {
-            auto orig = originCol;
-            long long ex_cost = curCol.DeleteInst(ex_inst) + orig.InsertCol(ex_inst) +
-                                curCol.InsertCol(inst) - inst->getCost() - ex_inst->getCost();
-            if (ex_cost < bestCost) {
-              bestCost = ex_cost;
-              bestCol = curCol;
-              bestOrig = orig;
-            }
-            curCol = COLS_[nearestCol_idx - i];
-          }
-        }
+        this->exchangeInsert(COLS_[nearestCol_idx - i], originCol, inst, bestCost, bestCol,
+                             bestOrig);
 
       } else if (nearestCol_idx - i < 0)
         left = false;
@@ -177,35 +150,8 @@ void Legalize::reFind() {
         }
 
         // exchange
-        curCol = COLS_[nearestCol_idx + i];
-        int idx = curCol.OverlapCluster(inst);
-        auto& clusters = curCol.Clusters();
-        vector<shared_ptr<cell>> exInsts;
-        if (idx != -1) {
-          for (auto ex_inst : clusters[idx].cells()) {
-            if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
-                 ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
-                (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
-              if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
-                   inst->oldlx() > inst->lx()) ||
-                  (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
-                   inst->oldlx() < inst->lx()))
-                continue;
-              exInsts.push_back(ex_inst);
-            }
-          }
-          for (auto& ex_inst : exInsts) {
-            auto orig = originCol;
-            long long ex_cost = curCol.DeleteInst(ex_inst) + orig.InsertCol(ex_inst) +
-                                curCol.InsertCol(inst) - inst->getCost() - ex_inst->getCost();
-            if (ex_cost < bestCost) {
-              bestCost = ex_cost;
-              bestCol = curCol;
-              bestOrig = orig;
-            }
-            curCol = COLS_[nearestCol_idx + i];
-          }
-        }
+        this->exchangeInsert(COLS_[nearestCol_idx + i], originCol, inst, bestCost, bestCol,
+                             bestOrig);
       } else if (nearestCol_idx + i >= Col_cnt)
         right = false;
     }
@@ -238,6 +184,60 @@ void Legalize::reFind() {
   }
 }
 
+void Legalize::exchangeInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
+                              long long& bestCost, Col& bestCol, Col& bestOrig) {
+  auto col = curCol;
+  int idx = col.OverlapCluster(inst);
+  if (idx == -1) return;
+  auto& clusters = col.Clusters();
+  vector<shared_ptr<cell>> exInsts;
+  vector<vector<shared_ptr<cell>>> exInsts_lists;
+  for (auto ex_inst : clusters[idx].cells()) {
+    if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
+         ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
+        (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
+      if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
+           inst->oldlx() > inst->lx()) ||
+          (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
+           inst->oldlx() < inst->lx()))
+        continue;
+      int num = exInsts.size();
+      if (num == 0 || exInsts[num - 1]->uy() == ex_inst->ly()) {
+        exInsts.push_back(ex_inst);
+      } else {
+        for (int len = 1; len <= exInsts.size(); len++) {
+          for (int i = 0; i + len <= exInsts.size(); i++) {
+            vector<shared_ptr<cell>> exlist(exInsts.begin() + i, exInsts.begin() + i + len);
+            exInsts_lists.push_back(exlist);
+          }
+        }
+        exInsts.clear();
+      }
+    }
+    for (int len = 1; len <= exInsts.size(); len++) {
+      for (int i = 0; i + len <= exInsts.size(); i++) {
+        vector<shared_ptr<cell>> exlist(exInsts.begin() + i, exInsts.begin() + i + len);
+        exInsts_lists.push_back(exlist);
+      }
+    }
+    exInsts.clear();
+  }
+  for (auto& ex_list : exInsts_lists) {
+    auto orig = origCol;
+    long long ex_cost = col.DeleteInst(ex_list[0], ex_list.size());
+    for (auto& ex_inst : ex_list) {
+      ex_cost += +orig.InsertCol(ex_inst) - ex_inst->getCost();
+    }
+    ex_cost += col.InsertCol(inst) - inst->getCost();
+    if (ex_cost < bestCost) {
+      bestCost = ex_cost;
+      bestCol = col;
+      bestOrig = orig;
+    }
+    col = curCol;
+  }
+}
+
 void Legalize::BipartiteGraphMatch() {
   LOG << "Bipartite graph match." << endl;
   // WriteGds("ReFind.gds");
@@ -264,12 +264,13 @@ long long Col::InsertCol(shared_ptr<cell>& inst) {
   return this->Clusters_[c_idx].getInsertCost(inst, true);
 }
 
-long long Col::DeleteInst(shared_ptr<cell>& inst) {
+long long Col::DeleteInst(shared_ptr<cell>& inst, int len) {
   long long cost = 0;
   int c_idx = this->OverlapCluster(inst);
   auto cells = this->Clusters_[c_idx].cells();
-  cells.erase(find(cells.begin(), cells.end(), inst));  // Delete target cell
-  Col subCol(this->idx_);  // create a new col to re-place the cells left
+  auto iter = find(cells.begin(), cells.end(), inst);
+  cells.erase(iter, iter + len);  // Delete target cell
+  Col subCol(this->idx_);         // create a new col to re-place the cells left
   this->Clusters_.erase(this->Clusters_.begin() + c_idx);
   for (auto& subinst : cells) subCol.InsertCol(subinst);
   for (auto& sc : subCol.Clusters()) {
