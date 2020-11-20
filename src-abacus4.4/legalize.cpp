@@ -31,6 +31,7 @@ void Legalize::doLegalize() {
   LOG << "Legalization begin." << endl;
   LOG << "Columns place." << endl;
   this->ColPlace();
+  checkLegal();
   // initial the set for refind.
   this->last_changedCols_.clear();
   for (int i = 0; i < Col_cnt; i++) {
@@ -38,8 +39,9 @@ void Legalize::doLegalize() {
   }
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
-  // WriteGds("orig.gds");
+   WriteGds("orig.gds");
   this->reFind();
+  // WriteGds("Refind.gds");
   this->BipartiteGraphMatch();
 }
 
@@ -55,6 +57,8 @@ void Legalize::ColPlace() {
 
     bool left = true, right = true;        // Whether to explore in that direction
     for (int i = 0; left || right; i++) {  // i - Depth of exploration
+      if (inst->getCost((nearestCol_idx - i) * 8, inst->oldly()) >= bestCost) left = false;
+      if (inst->getCost((nearestCol_idx + i) * 8, inst->oldly()) >= bestCost) right = false;
       // left
       if (nearestCol_idx - i >= 0 && left) {
         auto curCol = COLS_[nearestCol_idx - i];
@@ -63,9 +67,6 @@ void Legalize::ColPlace() {
           bestCost = curCost;
           bestCol = curCol;
         }
-        // When cost increase, stop the search in the direction
-        else if (curCost > bestCost)
-          left = false;
       } else if (nearestCol_idx - i < 0)
         left = false;
       // right
@@ -75,8 +76,7 @@ void Legalize::ColPlace() {
         if (curCost < bestCost) {
           bestCost = curCost;
           bestCol = curCol;
-        } else if (curCost > bestCost)
-          right = false;
+        }
       } else if (nearestCol_idx + i >= Col_cnt)
         right = false;
     }
@@ -107,6 +107,7 @@ void Legalize::reFind() {
     // The added cost of movement must not be greater than the reduced cost of origin col
     long long bestCost = -originCol.DeleteInst(inst, 1);
     Col bestOrig(originCol);
+    Col bestSecCol(-1);
     bool left = true, right = true;
     bool changed = false;  // wether the current column has been changed
     if (this->last_changedCols_.find(inst->lx() / 8) != this->last_changedCols_.end())
@@ -122,17 +123,18 @@ void Legalize::reFind() {
            this->last_changedCols_.find(nearestCol_idx - i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol_idx - i];
         // insert
-        long long curCost = curCol.InsertCol(inst) - inst->getCost();
-        if (curCost < bestCost) {
+        long long insertCost = curCol.InsertCol(inst);
+        long long curCost = insertCost - inst->getCost();
+        if (insertCost != LLONG_MAX && curCost < bestCost) {
           bestCost = curCost;
           bestCol = curCol;
           bestOrig = originCol;
+          bestSecCol = Col(-1);
         }
 
         // exchange
-        this->exchangeInsert(COLS_[nearestCol_idx - i], originCol, inst, bestCost, bestCol,
-                             bestOrig);
-
+        this->replaceInsert(COLS_[nearestCol_idx - i], originCol, inst, bestCost, bestCol, bestOrig,
+                            bestSecCol);
       } else if (nearestCol_idx - i < 0)
         left = false;
 
@@ -142,29 +144,42 @@ void Legalize::reFind() {
           (changed ||
            this->last_changedCols_.find(nearestCol_idx + i) != this->last_changedCols_.end())) {
         auto curCol = COLS_[nearestCol_idx + i];
-        long long curCost = curCol.InsertCol(inst) - inst->getCost();
-        if (curCost < bestCost) {
+        long long insertCost = curCol.InsertCol(inst);
+        long long curCost = insertCost - inst->getCost();
+        if (insertCost != LLONG_MAX && curCost < bestCost) {
           bestCost = curCost;
           bestCol = curCol;
           bestOrig = originCol;
+          bestSecCol = Col(-1);
         }
 
         // exchange
-        this->exchangeInsert(COLS_[nearestCol_idx + i], originCol, inst, bestCost, bestCol,
-                             bestOrig);
+        this->replaceInsert(COLS_[nearestCol_idx + i], originCol, inst, bestCost, bestCol, bestOrig,
+                            bestSecCol);
       } else if (nearestCol_idx + i >= Col_cnt)
         right = false;
+    }
+    for (auto& c : originCol.Clusters()) {
+      for (auto& c_inst : c.cells()) {
+        c_inst->setbuffLy(-1);
+      }
     }
     if (bestCol.idx() == inst->lx() / 8) continue;
     COLS_[bestCol.idx()] = bestCol;
     COLS_[originCol.idx()] = bestOrig;
+    if (bestSecCol.idx() != -1) {
+      COLS_[bestSecCol.idx()] = bestSecCol;
+      this->cur_changedCols.insert(bestSecCol.idx());
+      this->last_changedCols_.insert(bestSecCol.idx());
+      COLS_[bestSecCol.idx()].determindLoc();
+    }
     this->cur_changedCols.insert(bestCol.idx());
     this->cur_changedCols.insert(originCol.idx());
     this->last_changedCols_.insert(bestCol.idx());
     this->last_changedCols_.insert(originCol.idx());
     // set final position
-    bestCol.determindLoc();
-    bestOrig.determindLoc();
+    COLS_[bestCol.idx()].determindLoc();
+    COLS_[originCol.idx()].determindLoc();
   }
   this->last_changedCols_.swap(this->cur_changedCols);
   LOG << "Changed Cols-num: " << this->last_changedCols_.size() << endl;
@@ -184,57 +199,93 @@ void Legalize::reFind() {
   }
 }
 
-void Legalize::exchangeInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
-                              long long& bestCost, Col& bestCol, Col& bestOrig) {
+void Legalize::replaceInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
+                             long long& bestCost, Col& bestCol, Col& bestOrig, Col& bestSecCol) {
   auto col = curCol;
   int idx = col.OverlapCluster(inst);
-  if (idx == -1) return;
+  if (idx == -1) {
+    return;
+  }
   auto& clusters = col.Clusters();
-  vector<shared_ptr<cell>> exInsts;
-  vector<vector<shared_ptr<cell>>> exInsts_lists;
-  for (auto ex_inst : clusters[idx].cells()) {
-    if ((ex_inst->oldly() < inst->oldly() + inst->height() &&
-         ex_inst->oldly() + ex_inst->height() > inst->oldly()) ||
-        (ex_inst->uy() > inst->ly() && ex_inst->ly() < inst->uy())) {
-      if ((ex_inst->lx() < inst->lx() && ex_inst->oldlx() < ex_inst->lx() &&
-           inst->oldlx() > inst->lx()) ||
-          (ex_inst->lx() > inst->lx() && ex_inst->oldlx() > ex_inst->lx() &&
-           inst->oldlx() < inst->lx()))
-        continue;
-      int num = exInsts.size();
-      if (num == 0 || exInsts[num - 1]->uy() == ex_inst->ly()) {
-        exInsts.push_back(ex_inst);
-      } else {
-        for (int len = 1; len <= exInsts.size(); len++) {
-          for (int i = 0; i + len <= exInsts.size(); i++) {
-            vector<shared_ptr<cell>> exlist(exInsts.begin() + i, exInsts.begin() + i + len);
-            exInsts_lists.push_back(exlist);
+  vector<shared_ptr<cell>> reInsts;
+  for (auto re_inst : clusters[idx].cells()) {
+    if ((re_inst->oldly() < inst->oldly() + inst->height() &&
+         re_inst->oldly() + re_inst->height() > inst->oldly()) ||
+        (re_inst->uy() > inst->ly() && re_inst->ly() < inst->uy())) {
+      reInsts.push_back(re_inst);
+    }
+  }
+
+  for (auto& re_inst : reInsts) {
+    auto orig = origCol;
+    long long cost_0 = col.DeleteInst(re_inst, 1) - inst->getCost() - re_inst->getCost();
+    long long insertCost = col.InsertCol(inst);
+    if (insertCost == LLONG_MAX) {
+      col = curCol;
+      for (auto& c : col.Clusters()) {
+        for (auto& c_inst : c.cells()) {
+          c_inst->setbuffLy(-1);
+        }
+      }
+      continue;
+    } else
+      cost_0 += insertCost;
+    bool left = true, right = true;
+    int center_i = col.idx();
+    for (int i = 1; left || right; i++) {
+      if (re_inst->getCost((center_i - i) * 8, re_inst->oldly()) + cost_0 >= bestCost) left = false;
+      if (re_inst->getCost((center_i + i) * 8, re_inst->oldly()) + cost_0 >= bestCost)
+        right = false;
+      if (left && center_i - i >= 0) {
+        if (center_i - i != orig.idx()) {
+          auto left_col = COLS_[center_i - i];
+          long long cost_1 = left_col.InsertCol(re_inst);
+          if (cost_1 != LLONG_MAX && cost_0 + cost_1 < bestCost) {
+            bestCost = cost_0 + cost_1;
+            bestSecCol = left_col;
+            bestCol = col;
+            bestOrig = origCol;
+          }
+        } else {
+          long long cost_1 = orig.InsertCol(re_inst);
+          if (cost_1 != LLONG_MAX && cost_0 + cost_1 < bestCost) {
+            bestCost = cost_0 + cost_1;
+            bestSecCol = Col(-1);
+            bestCol = col;
+            bestOrig = orig;
           }
         }
-        exInsts.clear();
-      }
-    }
-    for (int len = 1; len <= exInsts.size(); len++) {
-      for (int i = 0; i + len <= exInsts.size(); i++) {
-        vector<shared_ptr<cell>> exlist(exInsts.begin() + i, exInsts.begin() + i + len);
-        exInsts_lists.push_back(exlist);
-      }
-    }
-    exInsts.clear();
-  }
-  for (auto& ex_list : exInsts_lists) {
-    auto orig = origCol;
-    long long ex_cost = col.DeleteInst(ex_list[0], ex_list.size());
-    for (auto& ex_inst : ex_list) {
-      ex_cost += +orig.InsertCol(ex_inst) - ex_inst->getCost();
-    }
-    ex_cost += col.InsertCol(inst) - inst->getCost();
-    if (ex_cost < bestCost) {
-      bestCost = ex_cost;
-      bestCol = col;
-      bestOrig = orig;
+      } else
+        left = false;
+
+      if (right && center_i + i < Col_cnt) {
+        if (center_i + i != orig.idx()) {
+          auto right_col = COLS_[center_i + i];
+          long long cost_1 = right_col.InsertCol(re_inst);
+          if (cost_1 != LLONG_MAX && cost_0 + cost_1 < bestCost) {
+            bestCost = cost_0 + cost_1;
+            bestSecCol = right_col;
+            bestCol = col;
+            bestOrig = origCol;
+          }
+        } else {
+          long long cost_1 = orig.InsertCol(re_inst);
+          if (cost_1 != LLONG_MAX && cost_0 + cost_1 < bestCost) {
+            bestCost = cost_0 + cost_1;
+            bestSecCol = Col(-1);
+            bestCol = col;
+            bestOrig = orig;
+          }
+        }
+      } else
+        right = false;
     }
     col = curCol;
+    for (auto& c : col.Clusters()) {
+      for (auto& c_inst : c.cells()) {
+        c_inst->setbuffLy(-1);
+      }
+    }
   }
 }
 
@@ -260,7 +311,11 @@ long long Col::InsertCol(shared_ptr<cell>& inst) {
     this->Clusters_[c_idx].addCell(inst);
     c_idx = this->collapse(c_idx);
   }
-  if (this->Clusters_[c_idx].totalHeight() > Row_cnt * 8) return LLONG_MAX;
+  auto& last_c = this->Clusters_[this->Clusters_.size() - 1];
+  if (this->Clusters_[0].ly() < 0 || last_c.ly() + last_c.totalHeight() > Row_cnt * 8) {
+    this->Clusters_[c_idx].getInsertCost(inst, false);
+    return LLONG_MAX;
+  }
   return this->Clusters_[c_idx].getInsertCost(inst, true);
 }
 
@@ -269,11 +324,19 @@ long long Col::DeleteInst(shared_ptr<cell>& inst, int len) {
   int c_idx = this->OverlapCluster(inst);
   auto cells = this->Clusters_[c_idx].cells();
   auto iter = find(cells.begin(), cells.end(), inst);
+  if (iter == cells.end()) {
+    cout << c_idx << " " << this->Clusters_.size() << " " << this->Clusters_[c_idx].ly() << " "
+         << this->Clusters_[c_idx].uy() << endl;
+    cout << inst->oldlx() << " " << inst->oldly() << " " << inst->lx() << " " << inst->ly() << endl;
+    WriteGds("Error.gds");
+    checkLegal();
+  }
   cells.erase(iter, iter + len);  // Delete target cell
-  Col subCol(this->idx_);         // create a new col to re-place the cells left
   this->Clusters_.erase(this->Clusters_.begin() + c_idx);
-  for (auto& subinst : cells) subCol.InsertCol(subinst);
-  for (auto& sc : subCol.Clusters()) {
+  for (auto& subinst : cells) {
+    this->InsertCol(subinst);
+  }
+  for (auto& sc : this->Clusters_) {
     int curLy = sc.ly();
     for (auto& subinst : sc.cells()) {
       if (subinst->ly() != curLy) {
@@ -282,10 +345,9 @@ long long Col::DeleteInst(shared_ptr<cell>& inst, int len) {
       }
       curLy += subinst->height();
     }
-    this->insert_newCluster(sc);
   }
   if (cost > 0) {
-    // WriteGds("error.gds");
+    WriteGds("Error.gds");
     throw "Erro - positive pop cost.";
   } else
     return cost;

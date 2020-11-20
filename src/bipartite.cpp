@@ -13,13 +13,12 @@ BGM::BGM() {
     this->Grid.push_back(Col);
   }
   LOG << "Compelete information of grid." << endl;
-  for (auto &inst : CELLS) {
+  for (auto& inst : CELLS) {
     int x = inst->lx() / 8;
     for (int y = inst->ly(); y < inst->uy(); y++) {
-      auto &bin = this->Grid[x][y];
+      auto& bin = this->Grid[x][y];
       if (bin.Inst())
-        // throw "Occupied bin.";
-        ;
+        throw "Occupied bin.";
       else
         bin.setInst(inst);
     }
@@ -37,7 +36,7 @@ void BGM::doBipartiteGraphMatch() {
         int ly = max_y_;
         int ux = 0;
         int uy = 0;
-        for (auto &inst : insts) {
+        for (auto& inst : insts) {
           lx = min(lx, inst->lx() / 8);
           ux = max(ux, inst->lx() / 8);
           ly = min(ly, inst->ly());
@@ -50,29 +49,23 @@ void BGM::doBipartiteGraphMatch() {
 }
 
 // Depth-first search clustering
-void BGM::dfs(int x, int y, set<shared_ptr<cell>> &insts) {
-  auto &bin = Grid[x][y];
+void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
+  auto& bin = Grid[x][y];
   if (bin.isStd() && !bin.visited()) {
     insts.insert(bin.Inst());
     bin.mark();
-    if (x - 1 >= 0)
-      dfs(x - 1, y, insts);
-    if (x + 1 <= max_x_)
-      dfs(x + 1, y, insts);
-    if (y - 1 >= 0)
-      dfs(x, y - 1, insts);
-    if (y + 1 <= max_y_)
-      dfs(x, y + 1, insts);
+    if (x - 1 >= 0) dfs(x - 1, y, insts);
+    if (x + 1 <= max_x_) dfs(x + 1, y, insts);
+    if (y - 1 >= 0) dfs(x, y - 1, insts);
+    if (y + 1 <= max_y_) dfs(x, y + 1, insts);
   }
 }
 
 // KM algorithm
-void BGM::KM_match(int lx, int ly, int ux, int uy,
-                   set<shared_ptr<cell>> &insts) {
+void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts) {
   // init
   vector<shared_ptr<cell>> vec_insts;
-  for (auto &inst : insts)
-    vec_insts.push_back(inst);
+  for (auto& inst : insts) vec_insts.push_back(inst);
   int width = ux - lx + 1;
   int height = uy - ly + 1;
   cnt_inst = insts.size();
@@ -104,7 +97,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy,
     for (int j = 0; j < cnt_bin; j++) {
       int x = lx + j / height;
       int y = ly + j % height;
-      auto &bin = this->Grid[x][y];
+      auto& bin = this->Grid[x][y];
       if (bin.isMacro() || insts.find(bin.Inst()) == insts.end()) {
         edge[j] = LLONG_MAX;
       } else {
@@ -122,27 +115,23 @@ void BGM::KM_match(int lx, int ly, int ux, int uy,
       fill(vis_inst.begin(), vis_inst.end(), false);
       fill(vis_bin.begin(), vis_bin.end(), false);
 
-      if (findPath(i))
-        break; // It's matched correctly
+      if (findPath(i)) break;  // It's matched correctly
       // Not matched, update top value
       for (int j = 0; j < cnt_inst; j++)
-        if (vis_inst[j])
-          w_inst[j] += minz;
+        if (vis_inst[j]) w_inst[j] += minz;
 
       for (int j = 0; j < cnt_bin; j++)
-        if (vis_bin[j])
-          w_bin[j] -= minz;
+        if (vis_bin[j]) w_bin[j] -= minz;
     }
   }
   // update location
   for (int i = 0; i < cnt_bin; i++) {
     int x = lx + i / height;
     int y = ly + i % height;
-    auto &bin = this->Grid[x][y];
-    if (bin.isMacro())
-      continue;
+    auto& bin = this->Grid[x][y];
+    if (bin.isMacro()) continue;
     if (c_bin[i] != -1) {
-      auto &inst = vec_insts[c_bin[i]];
+      auto& inst = vec_insts[c_bin[i]];
       bin.setInst(inst);
       inst->setLoc(x * 8, y);
     } else if (insts.find(bin.Inst()) != insts.end())
@@ -152,7 +141,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy,
 }
 
 bool BGM::findPath(int u) {
-  vis_inst[u] = true; // Join the augmented path
+  vis_inst[u] = true;  // Join the augmented path
   for (int v = 0; v < cnt_bin; v++) {
     if (!vis_bin[v] && Map[u][v] != LLONG_MAX) {
       // The bin point has not added into an augmented path, and there is a path

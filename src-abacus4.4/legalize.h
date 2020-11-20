@@ -95,8 +95,8 @@ class Legalize {
   void ColPlace();
 
   void reFind();
-  void exchangeInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
-                      long long& bestCost, Col& bestCol, Col& bestOrig);
+  void replaceInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
+                    long long& bestCost, Col& bestCol, Col& bestOrig, Col& bestSecCol);
   void BipartiteGraphMatch();
 
  private:

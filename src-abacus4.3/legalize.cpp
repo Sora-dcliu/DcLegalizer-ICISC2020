@@ -162,8 +162,8 @@ void Legalize::reFind() {
     this->last_changedCols_.insert(bestCol.idx());
     this->last_changedCols_.insert(originCol.idx());
     // set final position
-    bestCol.determindLoc();
-    bestOrig.determindLoc();
+    COLS_[bestCol.idx()].determindLoc();
+    COLS_[originCol.idx()].determindLoc();
   }
   this->last_changedCols_.swap(this->cur_changedCols);
   LOG << "Changed Cols-num: " << this->last_changedCols_.size() << endl;

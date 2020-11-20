@@ -75,7 +75,7 @@ class Col {
   // Check if the new cell(old_ly) overlaps with the existing cluster
   int OverlapCluster(shared_ptr<cell>& inst);
 
-  long long DeleteInst(shared_ptr<cell>& inst);  // Delete the cell and calculate the cost
+  long long DeleteInst(shared_ptr<cell>& inst, int len);  // Delete the cell and calculate the cost
 
   // Merge clusters and return the iterator of the changed cluster
   int collapse(int c_idx);
@@ -95,6 +95,8 @@ class Legalize {
   void ColPlace();
 
   void reFind();
+  void replaceInsert(const Col& curCol, const Col& origCol, shared_ptr<cell>& inst,
+                    long long& bestCost, Col& bestCol, Col& bestOrig, Col& bestSecCol);
   void BipartiteGraphMatch();
 
  private:
