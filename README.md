@@ -1,4 +1,4 @@
-# DcLegalizer
+#DcLegalizer
 
 集成电路EDA设计精英挑战赛-赛道八
 队伍：绑着石头过黄浦江
