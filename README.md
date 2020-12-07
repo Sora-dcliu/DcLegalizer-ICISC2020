@@ -1,10 +1,13 @@
 #DcLegalizer
 
 集成电路EDA设计精英挑战赛-赛道八
-队伍：绑着石头过黄浦江
+队伍名：绑着石头过黄浦江
 赛道排名：第二
 
-#src  比赛最终提交的版本
+# src 
+
+比赛最终提交的版本
+
   ##How to run
     dir: src
     make
@@ -15,6 +18,7 @@
   ##How to run
     make release
     ./eda20819.exe case.in case.out
+
   
-  
+
 邮箱：dcliu1997@gmail.com
