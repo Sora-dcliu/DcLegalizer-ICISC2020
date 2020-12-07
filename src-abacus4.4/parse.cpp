@@ -91,3 +91,19 @@ void WriteGds(const string& filename) {
   }
   gds << "ENDSTR" << endl << "ENDLIB" << endl;
 }
+
+void readOutFile(const string& filename) {
+  ifstream out(filename);
+  if (!out) {
+    cerr << "Error - no file." << endl;
+  } else
+    LOG << "Begin reading file." << endl;
+  string line;
+  for (int i = 0; i < Cell_cnt; i++) {
+    getline(out, line);
+    int lx, ly;
+    sscanf(line.c_str(), "%d %d", &lx, &ly);
+    CELLS[i]->setLoc(lx, ly);
+  }
+  out.close();
+}

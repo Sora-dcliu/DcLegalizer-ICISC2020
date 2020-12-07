@@ -30,5 +30,5 @@ void Output(const string& outputFile);
 void WriteGds(const string& filename);
 long long getTotalCost();
 bool checkLegal();
-
+void readOutFile(const string& filename);
 #endif

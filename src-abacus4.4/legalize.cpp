@@ -39,9 +39,11 @@ void Legalize::doLegalize() {
   }
   this->bestCost = getTotalCost();
   LOG << "Total cost: " << this->bestCost << endl;
-   WriteGds("orig.gds");
+  WriteGds("orig.gds");
   this->reFind();
   // WriteGds("Refind.gds");
+  // Output("Refind.out");
+  // readOutFile("Refind.out");
   this->BipartiteGraphMatch();
 }
 
@@ -194,7 +196,7 @@ void Legalize::reFind() {
     auto now = system_clock::now();
     auto duration = duration_cast<microseconds>(now - start);
     auto runtime = double(duration.count()) / microseconds::period::den;  // unit - s
-    if (runtime > 5 * 60) return;
+    if (runtime > 5 * 60 && improve < 10) return;
     if (improve > 1) reFind();
   }
 }

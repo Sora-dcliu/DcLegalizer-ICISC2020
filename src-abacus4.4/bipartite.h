@@ -32,7 +32,7 @@ class Bin {
   }
 
   inline void mark() { visited_ = true; };
-  inline void unmark() {visited_ = false;};
+  inline void unmark() { visited_ = false; };
   inline bool visited() { return visited_; };
 
  private:
@@ -48,7 +48,7 @@ class BGM {
   void doBipartiteGraphMatch();
 
   // For KM algorithm
-  void dfs(int x, int y, set<shared_ptr<cell>>& insts);
+  void dfs(int x, int y, set<shared_ptr<cell>>& insts, int lx, int ux, int ly, int uy);
   void KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts);
   bool findPath(int u);
 

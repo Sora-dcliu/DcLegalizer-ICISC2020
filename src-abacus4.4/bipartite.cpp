@@ -1,6 +1,9 @@
 #include "bipartite.h"
 #define LOG cout << "[LG] [BGM] "
 
+const int size_limit_y = 100;
+const int size_limit_x = 20;
+
 BGM::BGM() {
   LOG << "Generate grid." << endl;
   this->max_x_ = Col_cnt - 1;
@@ -30,7 +33,7 @@ void BGM::doBipartiteGraphMatch() {
   for (int x = 0; x <= this->max_x_; x++) {
     for (int y = 0; y <= this->max_y_; y++) {
       set<shared_ptr<cell>> insts;
-      this->dfs(x, y, insts);
+      this->dfs(x, y, insts, INT_MAX, 0, INT_MAX, 0);
       if (insts.size() > 1) {
         int lx = max_x_;
         int ly = max_y_;
@@ -49,15 +52,20 @@ void BGM::doBipartiteGraphMatch() {
 }
 
 // Depth-first search clustering
-void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
+void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts, int lx, int ux, int ly, int uy) {
   auto& bin = Grid[x][y];
   if (bin.isStd() && !bin.visited()) {
     insts.insert(bin.Inst());
+    lx = min(lx, bin.Inst()->lx() / 8);
+    ux = max(ux, bin.Inst()->lx() / 8);
+    ly = min(ly, bin.Inst()->ly());
+    uy = max(uy, bin.Inst()->ly());
     bin.mark();
-    if (x - 1 >= 0) dfs(x - 1, y, insts);
-    if (x + 1 <= max_x_) dfs(x + 1, y, insts);
-    if (y - 1 >= 0) dfs(x, y - 1, insts);
-    if (y + 1 <= max_y_) dfs(x, y + 1, insts);
+    if (uy - ly >= size_limit_y || ux - lx >= size_limit_x) return;
+    if (x - 1 >= 0) dfs(x - 1, y, insts, lx, ux, ly, uy);
+    if (x + 1 <= max_x_) dfs(x + 1, y, insts, lx, ux, ly, uy);
+    if (y - 1 >= 0) dfs(x, y - 1, insts, lx, ux, ly, uy);
+    if (y + 1 <= max_y_) dfs(x, y + 1, insts, lx, ux, ly, uy);
   }
 }
 
@@ -65,7 +73,10 @@ void BGM::dfs(int x, int y, set<shared_ptr<cell>>& insts) {
 void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts) {
   // init
   vector<shared_ptr<cell>> vec_insts;
-  for (auto& inst : insts) vec_insts.push_back(inst);
+  vec_insts.reserve(insts.size());
+  for (auto& inst : insts) {
+    vec_insts.push_back(inst);
+  }
   int width = ux - lx + 1;
   int height = uy - ly + 1;
   cnt_inst = insts.size();
@@ -92,8 +103,12 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
   vis_inst.resize(cnt_inst);
   vis_bin.resize(cnt_bin);
 
+  Map.reserve(cnt_inst);
+  Map.resize(cnt_inst);
   for (int i = 0; i < cnt_inst; i++) {
-    vector<long long> edge(cnt_bin);
+    auto& edge = Map[i];
+    edge.reserve(cnt_bin);
+    edge.resize(cnt_bin);
     for (int j = 0; j < cnt_bin; j++) {
       int x = lx + j / height;
       int y = ly + j % height;
@@ -105,9 +120,7 @@ void BGM::KM_match(int lx, int ly, int ux, int uy, set<shared_ptr<cell>>& insts)
         w_inst[i] = min(w_inst[i], edge[j]);
       }
     }
-    Map.push_back(edge);
   }
-
   // do KM
   for (int i = 0; i < cnt_inst; i++) {
     while (1) {
