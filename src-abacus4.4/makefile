@@ -1,5 +1,5 @@
 CC=g++
-TARGET=eda20819.exe
+TARGET=main
 SRC=$(shell echo *.cpp)
 OBJ=$(SRC:$.cpp=$.o)
 CFLAGS= -std=c++11

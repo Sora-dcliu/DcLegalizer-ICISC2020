@@ -22,9 +22,10 @@
 ## How to run
 
     make release
-    ./eda20819.exe case.in case.out
+    ./main case.in case.out
 
   
+
 
 
 邮箱：dcliu1997@gmail.com
